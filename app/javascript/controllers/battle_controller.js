@@ -53,6 +53,8 @@ export default class extends Controller {
     this.animating = false
     this.submitting = false
     this.aimWorld = null
+    this.myAim = null
+    this.myMove = null
     this.seenReplayId = 0
 
     this.onPointerMove = this.onPointerMove.bind(this)
@@ -111,7 +113,17 @@ export default class extends Controller {
     // A new round wipes whatever was staged for the previous one.
     if (this.renderedTurn !== state.turnNumber) {
       this.renderedTurn = state.turnNumber
+      this.myAim = null
+      this.myMove = null
       this.hideAim()
+    }
+
+    // Only the page render carries `you`; broadcasts leave it out, so this
+    // restores your own locked-in choice across a reload without ever telling
+    // you the opponent's.
+    if (state.you) {
+      if (state.you.aim != null) this.myAim = state.you.aim
+      if (state.you.move != null) this.myMove = state.you.move
     }
 
     this.placeTanks()
@@ -132,7 +144,30 @@ export default class extends Controller {
       this.ghostTarget.setAttribute("opacity", "0")
     }
 
+    this.renderCommitted(role)
     this.syncCursor()
+  }
+
+  // Once you have committed, keep showing what you committed to — where the
+  // shell is headed, or where you are about to roll.
+  renderCommitted(role) {
+    const state = this.state
+    const locked = state.status === "active"
+
+    this.ghostTarget.classList.toggle("is-locked", false)
+    if (!locked) return
+
+    if (role === "attacker" && state.committed.attacker && this.myAim !== null) {
+      this.drawAim(this.myAim, true)
+    }
+
+    if (role === "defender" && state.committed.defender && this.myMove !== null) {
+      const landing = this.clampPosition(this.positionOf(this.mySideValue) + this.myMove)
+      this.placeGhost(landing)
+      this.ghostTarget.setAttribute("opacity", "0.7")
+      this.ghostTarget.classList.add("is-locked")
+      this.positionOutTarget.textContent = landing
+    }
   }
 
   renderPanels(role) {
@@ -192,9 +227,11 @@ export default class extends Controller {
   async fire() {
     if (this.aimWorld === null) return
 
-    if (await this.post("aim", { aim_x: this.aimWorld })) {
+    const aim = this.aimWorld
+
+    if (await this.post("aim", { aim_x: aim })) {
+      this.myAim = aim
       this.state.committed.attacker = true
-      this.hideAim()
       this.renderState()
     }
   }
@@ -203,8 +240,8 @@ export default class extends Controller {
     if (!this.canMove()) return
 
     if (await this.post("move", { move_delta: delta })) {
+      this.myMove = delta
       this.state.committed.defender = true
-      this.ghostTarget.setAttribute("opacity", "0")
       this.renderState()
     }
   }
@@ -266,7 +303,7 @@ export default class extends Controller {
     }
   }
 
-  drawAim(world) {
+  drawAim(world, locked = false) {
     const from = this.muzzleFor(this.state.attackerSide, this.positionOf(this.state.attackerSide))
     const to = { x: worldToX(world), y: VIEW.ground }
     const control = this.controlPoint(from, to)
@@ -284,6 +321,10 @@ export default class extends Controller {
     this.aimDropTarget.setAttribute("y2", VIEW.ground + 34)
     this.aimDropTarget.setAttribute("opacity", "1")
 
+    this.aimArcTarget.classList.toggle("is-locked", locked)
+    this.crosshairTarget.classList.toggle("is-locked", locked)
+    if (locked) return
+
     this.fireButtonTarget.disabled = false
     this.targetOutTarget.textContent = world.toFixed(1)
     const angle = Math.atan2(from.y - control.y, control.x - from.x) * (180 / Math.PI)
@@ -295,6 +336,8 @@ export default class extends Controller {
     this.aimArcTarget.setAttribute("opacity", "0")
     this.crosshairTarget.setAttribute("opacity", "0")
     this.aimDropTarget.setAttribute("opacity", "0")
+    this.aimArcTarget.classList.remove("is-locked")
+    this.crosshairTarget.classList.remove("is-locked")
     this.fireButtonTarget.disabled = true
   }
 
@@ -322,9 +365,19 @@ export default class extends Controller {
     const from = this.positionOf(this.mySideValue)
     const landing = this.clampPosition(from + delta)
 
-    this.ghostTarget.setAttribute("transform", `translate(${worldToX(landing)}, ${VIEW.ground})`)
+    this.placeGhost(landing)
     this.ghostTarget.setAttribute("opacity", landing === from ? "0" : "0.45")
     this.positionOutTarget.textContent = landing
+  }
+
+  // Mirrored for the right-hand player so the ghost faces the same way as the
+  // tank it stands in for.
+  placeGhost(landing) {
+    const facing = this.mySideValue === "one" ? 1 : -1
+    this.ghostTarget.setAttribute(
+      "transform",
+      `translate(${worldToX(landing)}, ${VIEW.ground}) scale(${facing}, 1)`
+    )
   }
 
   // Everywhere the defender could still end up. Shown to the attacker as well:

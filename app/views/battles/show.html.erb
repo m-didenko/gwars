@@ -11,7 +11,7 @@
      data-battle-name-one-value="<%= @battle.player_one.name %>"
      data-battle-name-two-value="<%= @battle.player_two.name %>"
      data-battle-max-damage-value="<%= current_character.attack * 3 %>"
-     data-battle-state-value="<%= @battle.state_payload.to_json %>">
+     data-battle-state-value="<%= @battle.state_payload(current_character).to_json %>">
 
   <header class="hud">
     <div class="hud-side hud-side--one <%= "is-you" if @battle.player_one == current_character %>">

@@ -122,6 +122,16 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 
 .aim-drop { stroke: #ffffff; stroke-width: 1.5; stroke-dasharray: 4 5; stroke-opacity: 0.6; }
 .crosshair-label { fill: #fff; font-size: 16px; font-weight: bold; font-family: inherit; }
+
+/* A decision that has already been committed, shown only to whoever made it. */
+.aim-arc.is-locked { stroke: var(--gold); }
+.crosshair.is-locked circle,
+.crosshair.is-locked line { stroke: var(--gold); }
+.crosshair.is-locked rect { stroke: var(--gold); }
+.crosshair.is-locked .crosshair-label { fill: var(--gold); }
+.ghost.is-locked path,
+.ghost.is-locked rect,
+.ghost.is-locked circle { fill: var(--gold); }
 .ruler-label { fill: #8f9aa6; font-size: 16px; font-family: inherit; }
 .ghost { pointer-events: none; }
 

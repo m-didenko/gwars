@@ -75,13 +75,17 @@ class Battle < ApplicationRecord
     battle_turns.find_by(turn_number: turn_number)
   end
 
-  # Everything both browsers need to render themselves. Deliberately identical
-  # for both players: a pending decision is reported only as "committed: true",
-  # never as the value, so this is safe to put on a shared stream.
-  def state_payload
+  # Everything both browsers need to render themselves. Without a viewer this is
+  # deliberately identical for both players — a pending decision is reported only
+  # as "committed: true", never as the value — so it is safe on a shared stream.
+  #
+  # Pass a viewer and it also carries back that player's *own* committed choice,
+  # so they can see what they locked in. Only the page render does that; the
+  # broadcast never does, which is what keeps it out of the opponent's hands.
+  def state_payload(viewer = nil)
     turn = current_turn
 
-    {
+    payload = {
       status: status,
       turnNumber: turn_number,
       attackerSide: attacker && side_of(attacker),
@@ -92,6 +96,15 @@ class Battle < ApplicationRecord
       committed: { attacker: turn&.fired? || false, defender: turn&.moved? || false },
       replay: last_resolved_turn&.animation_payload(self)
     }
+
+    if viewer && turn
+      payload[:you] = {
+        aim: (turn.aim_x&.to_f if turn.attacker_id == viewer.id),
+        move: (turn.move_delta if turn.defender_id == viewer.id)
+      }
+    end
+
+    payload
   end
 
   def broadcast_state!
