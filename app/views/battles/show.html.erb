@@ -49,7 +49,7 @@
   <section class="controls">
     <div class="panel panel--aim" data-battle-target="aimPanel" hidden>
       <h2>AIM YOUR SHOT</h2>
-      <p class="hint">Move the mouse over the field to aim, then fire.</p>
+      <p class="hint">Move the mouse over the field to aim, then click the field — or press FIRE.</p>
       <button type="button" class="btn btn--fire"
               data-battle-target="fireButton" data-action="battle#fire" disabled>FIRE</button>
     </div>
@@ -66,9 +66,12 @@
 
     <div class="panel panel--move panel--wide" data-battle-target="movePanel" hidden>
       <h2>MOVE YOUR TANK</h2>
-      <p class="hint">Choose how far to roll — the enemy is aiming right now.</p>
+      <p class="hint">
+        Click anywhere inside the marked band to pick a spot, or use a preset.
+        The enemy is aiming right now.
+      </p>
       <div class="move-options">
-        <% Battle::MOVE_OPTIONS.each do |delta| %>
+        <% Battle::MOVE_PRESETS.each do |delta| %>
           <button type="button" class="move-btn <%= "is-active" if delta.zero? %>"
                   data-delta="<%= delta %>"
                   data-battle-target="moveButton"

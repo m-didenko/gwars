@@ -4,8 +4,11 @@ import { createConsumer } from "@rails/actioncable"
 // Must mirror the geometry baked into battles/_field.html.erb.
 const VIEW = { width: 1000, height: 460, margin: 46, span: 908, ground: 372 }
 const MUZZLE = { forward: 32, height: 28 }
+// These mirror the rules in Battle; the server re-checks everything, so they
+// only exist to make the preview agree with what will actually happen.
 const MIN_SEPARATION = 12
 const TANK_HALF = 2.5
+const MAX_MOVE = 9
 
 const worldToX = (unit) => VIEW.margin + (unit / 100) * VIEW.span
 const xToWorld = (x) => ((x - VIEW.margin) / VIEW.span) * 100
@@ -29,8 +32,8 @@ const ROLE_LABELS = {
 
 export default class extends Controller {
   static targets = [
-    "scene", "tankOne", "tankTwo", "ghost", "aimArc", "aimDrop", "crosshair",
-    "crosshairLabel", "projectile", "explosion",
+    "scene", "tankOne", "tankTwo", "ghost", "moveRange", "aimArc", "aimDrop",
+    "crosshair", "crosshairLabel", "projectile", "explosion",
     "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo", "turnNumber", "roleLabel",
     "aimPanel", "infoPanel", "movePanel", "waitPanel", "acceptPanel", "resultPanel",
     "fireButton", "moveButton", "targetOut", "angleOut", "positionOut",
@@ -54,8 +57,10 @@ export default class extends Controller {
 
     this.onPointerMove = this.onPointerMove.bind(this)
     this.onPointerLeave = this.onPointerLeave.bind(this)
+    this.onSceneClick = this.onSceneClick.bind(this)
     this.sceneTarget.addEventListener("pointermove", this.onPointerMove)
     this.sceneTarget.addEventListener("pointerleave", this.onPointerLeave)
+    this.sceneTarget.addEventListener("click", this.onSceneClick)
 
     this.consumer = createConsumer()
     this.subscription = this.consumer.subscriptions.create(
@@ -69,6 +74,7 @@ export default class extends Controller {
   disconnect() {
     this.sceneTarget.removeEventListener("pointermove", this.onPointerMove)
     this.sceneTarget.removeEventListener("pointerleave", this.onPointerLeave)
+    this.sceneTarget.removeEventListener("click", this.onSceneClick)
     this.subscription?.unsubscribe()
     this.consumer?.disconnect()
   }
@@ -102,6 +108,13 @@ export default class extends Controller {
     const state = this.state
     const role = this.role()
 
+    // A new round wipes whatever was staged for the previous one.
+    if (this.renderedTurn !== state.turnNumber) {
+      this.renderedTurn = state.turnNumber
+      this.pendingDelta = 0
+      this.hideAim()
+    }
+
     this.placeTanks()
     this.setHp("one", state.hp.one)
     this.setHp("two", state.hp.two)
@@ -112,6 +125,14 @@ export default class extends Controller {
 
     this.renderPanels(role)
     this.renderTicker(role)
+    this.renderMoveRange(role)
+
+    if (this.canMove()) {
+      this.selectDelta(this.pendingDelta)
+    } else {
+      this.ghostTarget.setAttribute("opacity", "0")
+    }
+
     this.syncCursor()
   }
 
@@ -215,14 +236,25 @@ export default class extends Controller {
   // ---------------------------------------------------------------- aiming
 
   onPointerMove(event) {
-    if (!this.canAim()) return
-
-    this.aimWorld = clamp(xToWorld(this.sceneX(event)), 0, 100)
-    this.drawAim(this.aimWorld)
+    if (this.canAim()) {
+      this.aimWorld = clamp(xToWorld(this.sceneX(event)), 0, 100)
+      this.drawAim(this.aimWorld)
+    } else if (this.canMove()) {
+      // Hovering only previews; the choice is pinned on click.
+      this.previewMove(this.deltaAt(event))
+    }
   }
 
   onPointerLeave() {
-    if (this.canAim() && this.aimWorld === null) this.hideAim()
+    if (this.canMove()) this.previewMove(this.pendingDelta)
+  }
+
+  onSceneClick(event) {
+    if (this.canAim()) {
+      this.fire()
+    } else if (this.canMove()) {
+      this.selectDelta(this.deltaAt(event))
+    }
   }
 
   drawAim(world) {
@@ -266,16 +298,49 @@ export default class extends Controller {
   // ---------------------------------------------------------------- moving
 
   selectMove(event) {
-    this.pendingDelta = Number(event.currentTarget.dataset.delta)
-    const landing = this.clampPosition(this.positionOf(this.mySideValue) + this.pendingDelta)
+    this.selectDelta(Number(event.currentTarget.dataset.delta))
+  }
 
+  // How far a click at this point would move us, capped at the roll limit.
+  deltaAt(event) {
+    const world = clamp(xToWorld(this.sceneX(event)), 0, 100)
+    const raw = Math.round(world - this.positionOf(this.mySideValue))
+
+    return clamp(raw, -MAX_MOVE, MAX_MOVE)
+  }
+
+  selectDelta(delta) {
+    this.pendingDelta = delta
     this.moveButtonTargets.forEach((button) => {
-      button.classList.toggle("is-active", button === event.currentTarget)
+      button.classList.toggle("is-active", Number(button.dataset.delta) === delta)
     })
+    this.previewMove(delta)
+  }
+
+  previewMove(delta) {
+    const from = this.positionOf(this.mySideValue)
+    const landing = this.clampPosition(from + delta)
 
     this.ghostTarget.setAttribute("transform", `translate(${worldToX(landing)}, ${VIEW.ground})`)
-    this.ghostTarget.setAttribute("opacity", this.pendingDelta === 0 ? "0" : "0.45")
+    this.ghostTarget.setAttribute("opacity", landing === from ? "0" : "0.45")
     this.positionOutTarget.textContent = landing
+  }
+
+  renderMoveRange(role) {
+    const visible = role === "defender" && !this.state.committed.defender
+
+    if (!visible) {
+      this.moveRangeTarget.setAttribute("opacity", "0")
+      return
+    }
+
+    const from = this.positionOf(this.mySideValue)
+    const left = worldToX(this.clampPosition(from - MAX_MOVE))
+    const right = worldToX(this.clampPosition(from + MAX_MOVE))
+
+    this.moveRangeTarget.setAttribute("x", left)
+    this.moveRangeTarget.setAttribute("width", Math.max(0, right - left))
+    this.moveRangeTarget.setAttribute("opacity", "1")
   }
 
   clampPosition(position) {
@@ -355,8 +420,18 @@ export default class extends Controller {
       !this.animating
   }
 
+  canMove() {
+    const state = this.state
+    return !!state &&
+      state.status === "active" &&
+      state.attackerSide !== this.mySideValue &&
+      !state.committed.defender &&
+      !this.animating
+  }
+
   syncCursor() {
     this.sceneTarget.classList.toggle("is-aimable", this.canAim())
+    this.sceneTarget.classList.toggle("is-movable", this.canMove())
   }
 
   placeTanks() {

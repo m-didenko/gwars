@@ -98,6 +98,11 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 
 .field { display: block; width: 100%; height: auto; background: #0b0f15; }
 .field.is-aimable { cursor: crosshair; }
+.field.is-movable { cursor: pointer; }
+
+/* Styling opacity stays on fill-/stroke-opacity: the plain `opacity` attribute
+   is what JS uses to show and hide these, and a CSS rule would override it. */
+.move-range { fill: #e2574a; fill-opacity: 0.28; }
 .field.is-shaking { animation: shake 0.4s ease-out; }
 
 @keyframes shake {
@@ -112,10 +117,10 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 0.1 13;
-  opacity: 0.85;
+  stroke-opacity: 0.85;
 }
 
-.aim-drop { stroke: #ffffff; stroke-width: 1.5; stroke-dasharray: 4 5; opacity: 0.6; }
+.aim-drop { stroke: #ffffff; stroke-width: 1.5; stroke-dasharray: 4 5; stroke-opacity: 0.6; }
 .crosshair-label { fill: #fff; font-size: 16px; font-weight: bold; font-family: inherit; }
 .ruler-label { fill: #8f9aa6; font-size: 16px; font-family: inherit; }
 .ghost { pointer-events: none; }

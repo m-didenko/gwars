@@ -4,11 +4,8 @@ class Battle < ApplicationRecord
   FIELD_MAX = 100
   TANK_LENGTH = 5
   TANK_HALF = TANK_LENGTH / 2.0   # only a shell landing this close to the centre does anything
-  # Rolls are spaced wider than the tank is wide, so committing to any move
-  # escapes a shot aimed dead-on at where you were standing. Aiming between two
-  # neighbouring options still clips either one, for less damage — that hedge is
-  # the whole read.
-  MOVE_OPTIONS = [-9, -6, -3, 0, 3, 6, 9].freeze
+  MAX_MOVE = 9                    # the defender may roll anywhere within this
+  MOVE_PRESETS = [-9, -6, -3, 0, 3, 6, 9].freeze # shortcuts for the same range
   MIN_SEPARATION = 12             # tanks may never close in tighter than this
   START_POSITIONS = { one: 20, two: 80 }.freeze
 
@@ -128,7 +125,7 @@ class Battle < ApplicationRecord
       turn = require_open_turn!
       raise "You are not the defender this turn" unless defender&.id == character.id
       raise "You already moved this turn" unless turn.move_delta.nil?
-      raise "That is not a legal roll" unless MOVE_OPTIONS.include?(delta.to_i)
+      raise "That is further than you can roll" if delta.to_i.abs > MAX_MOVE
 
       turn.update!(move_delta: delta.to_i)
       resolve_turn!(turn) if turn.ready?

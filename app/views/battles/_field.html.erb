@@ -61,6 +61,9 @@
     <path d="M970 292 L922 306 L970 322 Z" fill="#d04a3f"/>
   </g>
 
+  <%# How far the defender is allowed to roll this turn %>
+  <rect data-battle-target="moveRange" class="move-range" y="366" height="20" rx="4" opacity="0"/>
+
   <%# Ghost preview of where the defender would end up %>
   <g data-battle-target="ghost" class="ghost" opacity="0">
     <%= render "battles/tank", facing: 1, body: "#8a97a5", trim: "#5d6875", tread: "#3a4450" %>
