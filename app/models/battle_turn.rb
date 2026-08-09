@@ -3,10 +3,6 @@ class BattleTurn < ApplicationRecord
   belongs_to :attacker, class_name: "Character"
   belongs_to :defender, class_name: "Character"
 
-  # A commitment by either player is worth pushing to both browsers so the
-  # "opponent is ready" indicator updates live.
-  broadcasts_refreshes_to ->(turn) { turn.battle }
-
   def fired?
     aim_x.present?
   end

@@ -12,8 +12,6 @@ class Battle < ApplicationRecord
   MIN_SEPARATION = 12             # tanks may never close in tighter than this
   START_POSITIONS = { one: 20, two: 80 }.freeze
 
-  broadcasts_refreshes
-
   belongs_to :player_one, class_name: "Character"
   belongs_to :player_two, class_name: "Character"
   belongs_to :attacker, class_name: "Character", optional: true
@@ -42,6 +40,8 @@ class Battle < ApplicationRecord
       )
       open_turn!
     end
+
+    broadcast_state!
   end
 
   def participant?(character)
@@ -78,6 +78,29 @@ class Battle < ApplicationRecord
     battle_turns.find_by(turn_number: turn_number)
   end
 
+  # Everything both browsers need to render themselves. Deliberately identical
+  # for both players: a pending decision is reported only as "committed: true",
+  # never as the value, so this is safe to put on a shared stream.
+  def state_payload
+    turn = current_turn
+
+    {
+      status: status,
+      turnNumber: turn_number,
+      attackerSide: attacker && side_of(attacker),
+      winnerSide: winner && side_of(winner),
+      positions: { one: player_one_position, two: player_two_position },
+      hp: { one: player_one_hp, two: player_two_hp },
+      maxHp: { one: player_one.max_hp, two: player_two.max_hp },
+      committed: { attacker: turn&.fired? || false, defender: turn&.moved? || false },
+      replay: last_resolved_turn&.animation_payload(self)
+    }
+  end
+
+  def broadcast_state!
+    BattleChannel.broadcast_to(self, state_payload)
+  end
+
   def last_resolved_turn
     battle_turns.where.not(resolved_at: nil).order(:turn_number).last
   end
@@ -93,6 +116,9 @@ class Battle < ApplicationRecord
       turn.update!(aim_x: aim_x.to_f.clamp(FIELD_MIN, FIELD_MAX))
       resolve_turn!(turn) if turn.ready?
     end
+
+    # Broadcast outside the lock so subscribers never see pre-commit state.
+    broadcast_state!
   end
 
   # The defender commits how far to roll. The attacker never sees it until the
@@ -107,6 +133,8 @@ class Battle < ApplicationRecord
       turn.update!(move_delta: delta.to_i)
       resolve_turn!(turn) if turn.ready?
     end
+
+    broadcast_state!
   end
 
   private

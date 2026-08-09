@@ -1,6 +1,6 @@
 class BattlesController < ApplicationController
   before_action :require_character!
-  before_action :set_battle, only: [:show, :accept]
+  before_action :set_battle, only: [:show]
 
   def index
     @opponents = Character.where.not(id: current_character&.id).order(:name)
@@ -21,19 +21,6 @@ class BattlesController < ApplicationController
 
   def show
     redirect_to battles_path, alert: "Not your battle" and return unless @battle.participant?(current_character)
-
-    @role = @battle.role_for(current_character)
-    @turn = @battle.current_turn
-    @replay = @battle.last_resolved_turn&.animation_payload(@battle)
-  end
-
-  def accept
-    redirect_to battles_path, alert: "Not your battle" and return unless @battle.participant?(current_character)
-
-    @battle.accept!
-    redirect_to battle_path(@battle), notice: "Battle started!"
-  rescue RuntimeError => e
-    redirect_to battle_path(@battle), alert: e.message
   end
 
   private
