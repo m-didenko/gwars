@@ -208,8 +208,7 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
   cursor: pointer;
 }
 
-.move-btn:hover { background: #24303f; }
-.move-btn.is-active { background: #a5382c; border-color: #d1503f; font-weight: bold; }
+.move-btn:hover { background: #a5382c; border-color: #d1503f; }
 
 .move-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .move-footer span { font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }

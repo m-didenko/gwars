@@ -36,7 +36,7 @@ export default class extends Controller {
     "crosshair", "crosshairLabel", "projectile", "explosion",
     "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo", "turnNumber", "roleLabel",
     "aimPanel", "infoPanel", "movePanel", "waitPanel", "acceptPanel", "resultPanel",
-    "fireButton", "moveButton", "targetOut", "angleOut", "positionOut",
+    "fireButton", "targetOut", "angleOut", "positionOut",
     "waitTitle", "waitNote", "resultTitle", "resultNote", "ticker", "error"
   ]
 
@@ -51,8 +51,8 @@ export default class extends Controller {
 
   connect() {
     this.animating = false
+    this.submitting = false
     this.aimWorld = null
-    this.pendingDelta = 0
     this.seenReplayId = 0
 
     this.onPointerMove = this.onPointerMove.bind(this)
@@ -111,7 +111,6 @@ export default class extends Controller {
     // A new round wipes whatever was staged for the previous one.
     if (this.renderedTurn !== state.turnNumber) {
       this.renderedTurn = state.turnNumber
-      this.pendingDelta = 0
       this.hideAim()
     }
 
@@ -128,7 +127,7 @@ export default class extends Controller {
     this.renderMoveRange(role)
 
     if (this.canMove()) {
-      this.selectDelta(this.pendingDelta)
+      this.previewMove(0)
     } else {
       this.ghostTarget.setAttribute("opacity", "0")
     }
@@ -200,8 +199,10 @@ export default class extends Controller {
     }
   }
 
-  async confirmMove() {
-    if (await this.post("move", { move_delta: this.pendingDelta })) {
+  async commitMove(delta) {
+    if (!this.canMove()) return
+
+    if (await this.post("move", { move_delta: delta })) {
       this.state.committed.defender = true
       this.ghostTarget.setAttribute("opacity", "0")
       this.renderState()
@@ -213,24 +214,32 @@ export default class extends Controller {
   }
 
   async post(action, body) {
+    // Acting on a click means a double click must not send the move twice.
+    if (this.submitting) return false
+
+    this.submitting = true
     this.toggle(this.errorTarget, false)
 
-    const response = await fetch(`/battles/${this.idValue}/${action}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "X-CSRF-Token": document.querySelector("meta[name=csrf-token]")?.content ?? ""
-      },
-      body: JSON.stringify(body)
-    })
+    try {
+      const response = await fetch(`/battles/${this.idValue}/${action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRF-Token": document.querySelector("meta[name=csrf-token]")?.content ?? ""
+        },
+        body: JSON.stringify(body)
+      })
 
-    if (response.ok) return true
+      if (response.ok) return true
 
-    const payload = await response.json().catch(() => ({}))
-    this.errorTarget.textContent = payload.error ?? "Could not reach the server."
-    this.toggle(this.errorTarget, true)
-    return false
+      const payload = await response.json().catch(() => ({}))
+      this.errorTarget.textContent = payload.error ?? "Could not reach the server."
+      this.toggle(this.errorTarget, true)
+      return false
+    } finally {
+      this.submitting = false
+    }
   }
 
   // ---------------------------------------------------------------- aiming
@@ -246,14 +255,14 @@ export default class extends Controller {
   }
 
   onPointerLeave() {
-    if (this.canMove()) this.previewMove(this.pendingDelta)
+    if (this.canMove()) this.previewMove(0)
   }
 
   onSceneClick(event) {
     if (this.canAim()) {
       this.fire()
     } else if (this.canMove()) {
-      this.selectDelta(this.deltaAt(event))
+      this.commitMove(this.deltaAt(event))
     }
   }
 
@@ -298,7 +307,7 @@ export default class extends Controller {
   // ---------------------------------------------------------------- moving
 
   selectMove(event) {
-    this.selectDelta(Number(event.currentTarget.dataset.delta))
+    this.commitMove(Number(event.currentTarget.dataset.delta))
   }
 
   // How far a click at this point would move us, capped at the roll limit.
@@ -307,14 +316,6 @@ export default class extends Controller {
     const raw = Math.round(world - this.positionOf(this.mySideValue))
 
     return clamp(raw, -MAX_MOVE, MAX_MOVE)
-  }
-
-  selectDelta(delta) {
-    this.pendingDelta = delta
-    this.moveButtonTargets.forEach((button) => {
-      button.classList.toggle("is-active", Number(button.dataset.delta) === delta)
-    })
-    this.previewMove(delta)
   }
 
   previewMove(delta) {
@@ -326,25 +327,31 @@ export default class extends Controller {
     this.positionOutTarget.textContent = landing
   }
 
+  // Everywhere the defender could still end up. Shown to the attacker as well:
+  // positions and the roll limit are both public, so it gives nothing away —
+  // it just makes the guess you are making legible.
   renderMoveRange(role) {
-    const visible = role === "defender" && !this.state.committed.defender
+    const state = this.state
+    const defenderSide = state.attackerSide === "one" ? "two" : "one"
+    const visible = state.status === "active" &&
+      (role === "attacker" || !state.committed.defender)
 
     if (!visible) {
       this.moveRangeTarget.setAttribute("opacity", "0")
       return
     }
 
-    const from = this.positionOf(this.mySideValue)
-    const left = worldToX(this.clampPosition(from - MAX_MOVE))
-    const right = worldToX(this.clampPosition(from + MAX_MOVE))
+    const from = this.positionOf(defenderSide)
+    const left = worldToX(this.clampPosition(from - MAX_MOVE, defenderSide))
+    const right = worldToX(this.clampPosition(from + MAX_MOVE, defenderSide))
 
     this.moveRangeTarget.setAttribute("x", left)
     this.moveRangeTarget.setAttribute("width", Math.max(0, right - left))
     this.moveRangeTarget.setAttribute("opacity", "1")
   }
 
-  clampPosition(position) {
-    const opponent = this.positionOf(this.mySideValue === "one" ? "two" : "one")
+  clampPosition(position, moverSide = this.mySideValue) {
+    const opponent = this.positionOf(moverSide === "one" ? "two" : "one")
     const kept = position < opponent
       ? Math.min(position, opponent - MIN_SEPARATION)
       : Math.max(position, opponent + MIN_SEPARATION)

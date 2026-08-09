@@ -49,7 +49,10 @@
   <section class="controls">
     <div class="panel panel--aim" data-battle-target="aimPanel" hidden>
       <h2>AIM YOUR SHOT</h2>
-      <p class="hint">Move the mouse over the field to aim, then click the field — or press FIRE.</p>
+      <p class="hint">
+        Aim with the mouse, then click the field — or press FIRE. The marked band
+        is everywhere the enemy could roll to.
+      </p>
       <button type="button" class="btn btn--fire"
               data-battle-target="fireButton" data-action="battle#fire" disabled>FIRE</button>
     </div>
@@ -67,20 +70,18 @@
     <div class="panel panel--move panel--wide" data-battle-target="movePanel" hidden>
       <h2>MOVE YOUR TANK</h2>
       <p class="hint">
-        Click anywhere inside the marked band to pick a spot, or use a preset.
+        Click inside the marked band to roll there — that locks your move in.
         The enemy is aiming right now.
       </p>
       <div class="move-options">
         <% Battle::MOVE_PRESETS.each do |delta| %>
-          <button type="button" class="move-btn <%= "is-active" if delta.zero? %>"
+          <button type="button" class="move-btn"
                   data-delta="<%= delta %>"
-                  data-battle-target="moveButton"
                   data-action="battle#selectMove"><%= delta.positive? ? "+#{delta}" : delta %></button>
         <% end %>
       </div>
       <div class="move-footer">
-        <span>CURRENT POSITION: <strong data-battle-target="positionOut">—</strong></span>
-        <button type="button" class="btn btn--primary" data-action="battle#confirmMove">CONFIRM MOVE</button>
+        <span>ROLL TO: <strong data-battle-target="positionOut">—</strong></span>
       </div>
     </div>
 
