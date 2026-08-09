@@ -1,0 +1,10 @@
+<h1><%= @character.name %></h1>
+
+<ul>
+  <li>HP: <%= @character.hp %> / <%= @character.max_hp %></li>
+  <li>Attack: <%= @character.attack %></li>
+  <li>Defense: <%= @character.defense %></li>
+  <li>Gold: <%= @character.gold %></li>
+</ul>
+
+<%= link_to "Back to battles", battles_path %>

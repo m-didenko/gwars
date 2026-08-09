@@ -1,0 +1,34 @@
+<h1>GanjaWars-lite</h1>
+
+<p>
+  Your character: <strong><%= current_character.name %></strong>
+  (HP <%= current_character.hp %>/<%= current_character.max_hp %>)
+</p>
+
+<h2>Challenge a player</h2>
+<% if @opponents.empty? %>
+  <p>No other characters yet — ask a friend to sign up!</p>
+<% else %>
+  <ul>
+    <% @opponents.each do |opponent| %>
+      <li>
+        <%= opponent.name %> (HP <%= opponent.hp %>/<%= opponent.max_hp %>)
+        <%= button_to "Challenge", battles_path(opponent_id: opponent.id), method: :post %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<h2>Your battles</h2>
+<% if @battles.empty? %>
+  <p>No battles yet.</p>
+<% else %>
+  <ul>
+    <% @battles.each do |battle| %>
+      <li>
+        <%= link_to "#{battle.player_one.name} vs #{battle.player_two.name}", battle_path(battle) %>
+        — <%= battle.status %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

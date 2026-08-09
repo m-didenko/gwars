@@ -1,0 +1,42 @@
+<%= turbo_stream_from @battle %>
+
+<h1><%= @battle.player_one.name %> vs <%= @battle.player_two.name %></h1>
+
+<p>Status: <strong><%= @battle.status %></strong></p>
+
+<% [@battle.player_one, @battle.player_two].each do |fighter| %>
+  <p>
+    <%= fighter.name %>: HP <%= fighter.hp %> / <%= fighter.max_hp %>
+    <% if @battle.active? && @battle.current_turn_id == fighter.id %>
+      ← current turn
+    <% end %>
+  </p>
+<% end %>
+
+<% if @battle.pending? %>
+  <% if @battle.player_two == current_character %>
+    <%= button_to "Accept challenge", accept_battle_path(@battle), method: :post %>
+  <% else %>
+    <p>Waiting for <%= @battle.player_two.name %> to accept…</p>
+  <% end %>
+<% elsif @battle.active? %>
+  <% if @battle.current_turn_id == current_character&.id %>
+    <%= button_to "Attack!", battle_battle_actions_path(@battle), method: :post %>
+  <% else %>
+    <p>Waiting for opponent's move…</p>
+  <% end %>
+<% elsif @battle.finished? %>
+  <p><strong><%= @battle.winner.name %> wins!</strong></p>
+<% end %>
+
+<h2>Battle log</h2>
+<ul>
+  <% @battle.battle_actions.order(created_at: :desc).each do |action| %>
+    <li>
+      <%= action.character.name %> attacked for <%= action.damage %> damage
+      (target HP after: <%= action.target_hp_after %>)
+    </li>
+  <% end %>
+</ul>
+
+<%= link_to "Back to battles", battles_path %>

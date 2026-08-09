@@ -1,0 +1,22 @@
+<h1>Create your character</h1>
+
+<%= form_with model: @character, url: character_path do |f| %>
+  <% if @character.errors.any? %>
+    <div style="color: red;">
+      <ul>
+        <% @character.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :name %><br>
+    <%= f.text_field :name %>
+  </div>
+
+  <p>Starting stats: HP 100, Attack 10, Defense 2.</p>
+
+  <%= f.submit "Create character" %>
+<% end %>
