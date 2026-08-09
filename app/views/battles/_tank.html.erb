@@ -1,0 +1,18 @@
+<%#
+  A tank drawn around its own centre sitting on y=0, so the caller only has to
+  translate the wrapping <g> to the right spot on the ground line.
+  `facing` is 1 for a barrel pointing right, -1 for pointing left.
+%>
+<g transform="scale(<%= facing %>,1)">
+  <rect x="-23" y="-13" width="46" height="13" rx="6.5" fill="<%= tread %>"/>
+  <% [-15, -5, 5, 15].each do |cx| %>
+    <circle cx="<%= cx %>" cy="-6.5" r="3.6" fill="#71808f"/>
+  <% end %>
+
+  <path d="M-21 -13 L-19 -24 L13 -24 L20 -13 Z" fill="<%= body %>"/>
+  <path d="M-19 -24 L13 -24 L13 -21 L-19 -21 Z" fill="<%= trim %>" opacity="0.6"/>
+
+  <rect x="-9" y="-34" width="19" height="11" rx="4" fill="<%= trim %>"/>
+  <rect x="8" y="-31" width="22" height="5" rx="2.5" fill="<%= trim %>"/>
+  <rect x="27" y="-32.5" width="5" height="8" rx="2" fill="<%= tread %>"/>
+</g>

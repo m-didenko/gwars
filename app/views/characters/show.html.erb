@@ -1,10 +1,9 @@
 <h1><%= @character.name %></h1>
 
-<ul>
-  <li>HP: <%= @character.hp %> / <%= @character.max_hp %></li>
-  <li>Attack: <%= @character.attack %></li>
-  <li>Defense: <%= @character.defense %></li>
-  <li>Gold: <%= @character.gold %></li>
+<ul class="card-list">
+  <li><span>Max HP</span><strong><%= @character.max_hp %></strong></li>
+  <li><span>Firepower (max damage)</span><strong><%= @character.attack * 3 %></strong></li>
+  <li><span>Armor</span><strong><%= @character.defense %></strong></li>
 </ul>
 
-<%= link_to "Back to battles", battles_path %>
+<p class="back-link"><%= link_to "← Back to battles", battles_path %></p>

@@ -1,0 +1,96 @@
+<%#
+  The battlefield is deliberately free of server-rendered dynamic values: every
+  tank position, arc and projectile is placed by battle_controller.js from the
+  data-values on the wrapper. That keeps Turbo morph from ever rewriting the
+  scene mid-animation.
+%>
+<svg class="field" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid meet"
+     data-battle-target="scene" role="img" aria-label="Battlefield">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2b6ea8"/>
+      <stop offset="55%" stop-color="#68a9d6"/>
+      <stop offset="100%" stop-color="#a9d4ea"/>
+    </linearGradient>
+    <linearGradient id="dirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a4326"/>
+      <stop offset="100%" stop-color="#2f2214"/>
+    </linearGradient>
+    <radialGradient id="blast">
+      <stop offset="0%" stop-color="#fff8d0"/>
+      <stop offset="45%" stop-color="#ffab2e"/>
+      <stop offset="100%" stop-color="#d0400f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="384" fill="url(#sky)"/>
+
+  <g fill="#ffffff" opacity="0.75">
+    <ellipse cx="180" cy="86" rx="52" ry="20"/>
+    <ellipse cx="222" cy="78" rx="38" ry="24"/>
+    <ellipse cx="700" cy="64" rx="60" ry="22"/>
+    <ellipse cx="748" cy="58" rx="42" ry="26"/>
+  </g>
+
+  <path d="M0 384 L120 286 L212 340 L318 258 L430 350 L470 384 Z" fill="#5b83a6" opacity="0.55"/>
+  <path d="M540 384 L640 272 L742 336 L860 262 L1000 356 L1000 384 Z" fill="#5b83a6" opacity="0.55"/>
+  <path d="M0 384 L96 320 L206 366 L336 306 L470 372 L604 316 L742 370 L880 312 L1000 372 L1000 384 Z"
+        fill="#48708f" opacity="0.7"/>
+
+  <rect x="0" y="368" width="1000" height="18" fill="#4f7a2f"/>
+  <rect x="0" y="384" width="1000" height="34" fill="url(#dirt)"/>
+
+  <g class="ruler">
+    <% (0..100).step(5) do |unit| %>
+      <% x = 46 + (unit / 100.0) * 908 %>
+      <% major = (unit % 25).zero? %>
+      <line x1="<%= x.round(1) %>" y1="418" x2="<%= x.round(1) %>" y2="<%= major ? 432 : 426 %>"
+            stroke="#8f9aa6" stroke-width="<%= major ? 2 : 1 %>"/>
+      <% if major %>
+        <text x="<%= x.round(1) %>" y="452" text-anchor="middle" class="ruler-label"><%= unit %></text>
+      <% end %>
+    <% end %>
+  </g>
+
+  <g class="flag">
+    <line x1="30" y1="290" x2="30" y2="372" stroke="#cfd6de" stroke-width="3"/>
+    <path d="M30 292 L78 306 L30 322 Z" fill="#3f7fd0"/>
+  </g>
+  <g class="flag">
+    <line x1="970" y1="290" x2="970" y2="372" stroke="#cfd6de" stroke-width="3"/>
+    <path d="M970 292 L922 306 L970 322 Z" fill="#d04a3f"/>
+  </g>
+
+  <%# Ghost preview of where the defender would end up %>
+  <g data-battle-target="ghost" class="ghost" opacity="0">
+    <%= render "battles/tank", facing: 1, body: "#8a97a5", trim: "#5d6875", tread: "#3a4450" %>
+  </g>
+
+  <path data-battle-target="aimArc" class="aim-arc" fill="none" opacity="0"/>
+  <line data-battle-target="aimDrop" class="aim-drop" opacity="0"/>
+
+  <g data-battle-target="tankOne">
+    <%= render "battles/tank", facing: 1, body: "#4a90e2", trim: "#2c5d8f", tread: "#22303f" %>
+  </g>
+  <g data-battle-target="tankTwo">
+    <%= render "battles/tank", facing: -1, body: "#e2574a", trim: "#8f322c", tread: "#3f2422" %>
+  </g>
+
+  <circle data-battle-target="projectile" r="5" fill="#ffe08a" stroke="#c8791b" stroke-width="2" opacity="0"/>
+
+  <g data-battle-target="crosshair" class="crosshair" opacity="0">
+    <circle cx="0" cy="0" r="12" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <line x1="-19" y1="0" x2="-6" y2="0" stroke="#ffffff" stroke-width="2"/>
+    <line x1="6" y1="0" x2="19" y2="0" stroke="#ffffff" stroke-width="2"/>
+    <line x1="0" y1="-19" x2="0" y2="-6" stroke="#ffffff" stroke-width="2"/>
+    <line x1="0" y1="6" x2="0" y2="19" stroke="#ffffff" stroke-width="2"/>
+    <g transform="translate(0,-40)">
+      <rect x="-26" y="-15" width="52" height="27" rx="6" fill="#10151c" stroke="#3d4855"/>
+      <text data-battle-target="crosshairLabel" x="0" y="4" text-anchor="middle" class="crosshair-label">50</text>
+    </g>
+  </g>
+
+  <g data-battle-target="explosion" opacity="0">
+    <circle r="40" fill="url(#blast)"/>
+  </g>
+</svg>

@@ -8,10 +8,6 @@ class BattlesController < ApplicationController
                       .order(created_at: :desc)
   end
 
-  def new
-    @opponent = Character.find(params[:opponent_id])
-  end
-
   def create
     opponent = Character.find(params[:opponent_id])
     @battle = Battle.new(player_one: current_character, player_two: opponent, status: :pending)
@@ -25,6 +21,10 @@ class BattlesController < ApplicationController
 
   def show
     redirect_to battles_path, alert: "Not your battle" and return unless @battle.participant?(current_character)
+
+    @role = @battle.role_for(current_character)
+    @turn = @battle.current_turn
+    @replay = @battle.last_resolved_turn&.animation_payload(@battle)
   end
 
   def accept
@@ -32,6 +32,8 @@ class BattlesController < ApplicationController
 
     @battle.accept!
     redirect_to battle_path(@battle), notice: "Battle started!"
+  rescue RuntimeError => e
+    redirect_to battle_path(@battle), alert: e.message
   end
 
   private

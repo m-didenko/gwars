@@ -1,42 +1,132 @@
 <%= turbo_stream_from @battle %>
 
-<h1><%= @battle.player_one.name %> vs <%= @battle.player_two.name %></h1>
+<div class="battle"
+     data-controller="battle"
+     data-battle-id-value="<%= @battle.id %>"
+     data-battle-turn-value="<%= @battle.turn_number %>"
+     data-battle-role-value="<%= @role %>"
+     data-battle-status-value="<%= @battle.status %>"
+     data-battle-player-one-max-hp-value="<%= @battle.player_one.max_hp %>"
+     data-battle-player-two-max-hp-value="<%= @battle.player_two.max_hp %>"
+     data-battle-player-one-position-value="<%= @battle.player_one_position || Battle::START_POSITIONS[:one] %>"
+     data-battle-player-two-position-value="<%= @battle.player_two_position || Battle::START_POSITIONS[:two] %>"
+     data-battle-attacker-side-value="<%= @battle.attacker ? @battle.side_of(@battle.attacker) : "" %>"
+     data-battle-my-side-value="<%= @battle.side_of(current_character) %>"
+     data-battle-committed-value="<%= @role == :attacker ? @turn&.fired? : @turn&.moved? %>"
+     data-battle-replay-value="<%= (@replay || {}).to_json %>">
 
-<p>Status: <strong><%= @battle.status %></strong></p>
-
-<% [@battle.player_one, @battle.player_two].each do |fighter| %>
-  <p>
-    <%= fighter.name %>: HP <%= fighter.hp %> / <%= fighter.max_hp %>
-    <% if @battle.active? && @battle.current_turn_id == fighter.id %>
-      ← current turn
+  <header class="hud">
+    <% [[@battle.player_one, "one"], [@battle.player_two, "two"]].each_with_index do |(fighter, side), index| %>
+      <% hp = @battle.hp_for(fighter) || fighter.max_hp %>
+      <% if index == 1 %>
+        <div class="hud-turn">
+          <div class="hud-turn-number">TURN <%= [@battle.turn_number, 1].max %></div>
+          <div class="hud-turn-role hud-turn-role--<%= @role %>">
+            <%= t(".role_#{@role}", default: {
+                  attacker: "YOUR TURN: AIM & FIRE",
+                  defender: "YOUR TURN: MOVE",
+                  spectator: "WATCHING"
+                }[@role]) %>
+          </div>
+        </div>
+      <% end %>
+      <div class="hud-side hud-side--<%= side %> <%= "is-you" if fighter == current_character %>">
+        <div class="hud-label">
+          <%= fighter == current_character ? "YOU" : "ENEMY" %>
+          <span class="hud-name"><%= fighter.name %></span>
+        </div>
+        <div class="hud-hp">
+          HP: <span data-battle-target="hpText<%= side.capitalize %>"><%= hp %></span> / <%= fighter.max_hp %>
+        </div>
+        <div class="hp-track">
+          <div class="hp-fill" data-battle-target="hpBar<%= side.capitalize %>"
+               style="width: <%= (hp.to_f / fighter.max_hp * 100).round %>%"></div>
+        </div>
+      </div>
     <% end %>
-  </p>
-<% end %>
+  </header>
 
-<% if @battle.pending? %>
-  <% if @battle.player_two == current_character %>
-    <%= button_to "Accept challenge", accept_battle_path(@battle), method: :post %>
-  <% else %>
-    <p>Waiting for <%= @battle.player_two.name %> to accept…</p>
-  <% end %>
-<% elsif @battle.active? %>
-  <% if @battle.current_turn_id == current_character&.id %>
-    <%= button_to "Attack!", battle_battle_actions_path(@battle), method: :post %>
-  <% else %>
-    <p>Waiting for opponent's move…</p>
-  <% end %>
-<% elsif @battle.finished? %>
-  <p><strong><%= @battle.winner.name %> wins!</strong></p>
-<% end %>
+  <%= render "battles/field" %>
 
-<h2>Battle log</h2>
-<ul>
-  <% @battle.battle_actions.order(created_at: :desc).each do |action| %>
-    <li>
-      <%= action.character.name %> attacked for <%= action.damage %> damage
-      (target HP after: <%= action.target_hp_after %>)
-    </li>
-  <% end %>
-</ul>
+  <section class="controls">
+    <% if @battle.pending? %>
+      <div class="panel panel--wide">
+        <% if @battle.player_two == current_character %>
+          <h2>INCOMING CHALLENGE</h2>
+          <p><%= @battle.player_one.name %> wants a duel.</p>
+          <%= button_to "ACCEPT CHALLENGE", accept_battle_path(@battle), method: :post, class: "btn btn--primary" %>
+        <% else %>
+          <h2>WAITING FOR OPPONENT</h2>
+          <p><%= @battle.player_two.name %> has not accepted the challenge yet.</p>
+        <% end %>
+      </div>
 
-<%= link_to "Back to battles", battles_path %>
+    <% elsif @battle.finished? %>
+      <div class="panel panel--wide panel--result">
+        <h2><%= @battle.winner == current_character ? "VICTORY" : "DEFEAT" %></h2>
+        <p><strong><%= @battle.winner.name %></strong> wins after <%= @battle.turn_number %> turns.</p>
+        <%= link_to "Back to battles", battles_path, class: "btn" %>
+      </div>
+
+    <% elsif @role == :attacker %>
+      <div class="panel panel--aim <%= "is-locked" if @turn.fired? %>" data-battle-target="panel">
+        <h2>AIM YOUR SHOT</h2>
+        <% if @turn.fired? %>
+          <p class="locked-note">Shot locked in. Waiting for the enemy to move…</p>
+        <% else %>
+          <p class="hint">Move the mouse over the field to aim, then fire.</p>
+          <%= form_with url: aim_battle_path(@battle), method: :post, data: { battle_target: "aimForm" } do |f| %>
+            <%= f.hidden_field :aim_x, data: { battle_target: "aimInput" } %>
+            <button type="submit" class="btn btn--fire" data-battle-target="fireButton" disabled>FIRE</button>
+          <% end %>
+        <% end %>
+      </div>
+      <div class="panel panel--info">
+        <h2>WEAPON INFO</h2>
+        <dl>
+          <div><dt>TARGET</dt><dd data-battle-target="targetOut">—</dd></div>
+          <div><dt>ANGLE</dt><dd data-battle-target="angleOut">—</dd></div>
+          <div><dt>MAX DAMAGE</dt><dd><%= current_character.attack * 3 %></dd></div>
+          <div><dt>WIND</dt><dd>0</dd></div>
+        </dl>
+      </div>
+
+    <% elsif @role == :defender %>
+      <div class="panel panel--move panel--wide <%= "is-locked" if @turn.moved? %>" data-battle-target="panel">
+        <h2>MOVE YOUR TANK</h2>
+        <% if @turn.moved? %>
+          <p class="locked-note">Move locked in. Waiting for the enemy to fire…</p>
+        <% else %>
+          <p class="hint">Choose how far to roll — the enemy is aiming right now.</p>
+          <%= form_with url: move_battle_path(@battle), method: :post do |f| %>
+            <%= f.hidden_field :move_delta, value: 0, data: { battle_target: "moveInput" } %>
+            <div class="move-options">
+              <% Battle::MOVE_OPTIONS.each do |delta| %>
+                <button type="button" class="move-btn <%= "is-active" if delta.zero? %>"
+                        data-delta="<%= delta %>"
+                        data-battle-target="moveButton"
+                        data-action="battle#selectMove"><%= delta.positive? ? "+#{delta}" : delta %></button>
+              <% end %>
+            </div>
+            <div class="move-footer">
+              <span>CURRENT POSITION: <strong data-battle-target="positionOut"><%= @battle.position_for(current_character) %></strong></span>
+              <button type="submit" class="btn btn--primary">CONFIRM MOVE</button>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  </section>
+
+  <% if @battle.active? && @turn %>
+    <footer class="ticker">
+      <% if @role == :attacker %>
+        <%= @turn.moved? ? "Enemy has committed their move." : "Enemy is deciding where to roll…" %>
+      <% elsif @role == :defender %>
+        <%= @turn.fired? ? "Enemy has locked their shot." : "Enemy is lining up a shot…" %>
+      <% end %>
+    </footer>
+  <% end %>
+</div>
+
+<p class="back-link"><%= link_to "← Back to battles", battles_path %></p>

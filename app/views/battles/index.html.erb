@@ -1,19 +1,19 @@
-<h1>GanjaWars-lite</h1>
+<h1>Tank Battle Online</h1>
 
-<p>
-  Your character: <strong><%= current_character.name %></strong>
-  (HP <%= current_character.hp %>/<%= current_character.max_hp %>)
+<p class="tag">
+  COMMANDER: <strong><%= current_character.name %></strong> ·
+  MAX HP <%= current_character.max_hp %> · FIREPOWER <%= current_character.attack * 3 %> · ARMOR <%= current_character.defense %>
 </p>
 
-<h2>Challenge a player</h2>
+<h2>Challenge a commander</h2>
 <% if @opponents.empty? %>
-  <p>No other characters yet — ask a friend to sign up!</p>
+  <ul class="card-list"><li>No other commanders yet — ask a friend to sign up.</li></ul>
 <% else %>
-  <ul>
+  <ul class="card-list">
     <% @opponents.each do |opponent| %>
       <li>
-        <%= opponent.name %> (HP <%= opponent.hp %>/<%= opponent.max_hp %>)
-        <%= button_to "Challenge", battles_path(opponent_id: opponent.id), method: :post %>
+        <span><%= opponent.name %> <span class="tag">· MAX HP <%= opponent.max_hp %></span></span>
+        <%= button_to "CHALLENGE", battles_path(opponent_id: opponent.id), method: :post, class: "btn" %>
       </li>
     <% end %>
   </ul>
@@ -21,13 +21,17 @@
 
 <h2>Your battles</h2>
 <% if @battles.empty? %>
-  <p>No battles yet.</p>
+  <ul class="card-list"><li>No battles yet.</li></ul>
 <% else %>
-  <ul>
+  <ul class="card-list">
     <% @battles.each do |battle| %>
       <li>
         <%= link_to "#{battle.player_one.name} vs #{battle.player_two.name}", battle_path(battle) %>
-        — <%= battle.status %>
+        <span class="tag">
+          <%= battle.status.upcase %>
+          <%= "· TURN #{battle.turn_number}" if battle.active? %>
+          <%= "· WINNER: #{battle.winner.name}" if battle.finished? && battle.winner %>
+        </span>
       </li>
     <% end %>
   </ul>

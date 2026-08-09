@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>GanjaWars-lite</title>
+    <title>Tank Battle Online</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
@@ -12,11 +12,11 @@
   </head>
 
   <body>
-    <header style="padding: 12px 20px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between;">
-      <%= link_to "GanjaWars-lite", root_path %>
+    <header class="site-header">
+      <%= link_to "TANK BATTLE ONLINE", root_path, class: "brand" %>
       <nav>
         <% if user_signed_in? %>
-          <%= current_user.email %> —
+          <span class="tag"><%= current_user.email %></span>
           <%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %>
         <% else %>
           <%= link_to "Sign in", new_user_session_path %> |
@@ -25,13 +25,9 @@
       </nav>
     </header>
 
-    <main style="max-width: 720px; margin: 24px auto; padding: 0 16px;">
-      <% if notice %>
-        <p style="color: green;"><%= notice %></p>
-      <% end %>
-      <% if alert %>
-        <p style="color: red;"><%= alert %></p>
-      <% end %>
+    <main>
+      <% if notice %><p class="flash flash--notice"><%= notice %></p><% end %>
+      <% if alert %><p class="flash flash--alert"><%= alert %></p><% end %>
 
       <%= yield %>
     </main>

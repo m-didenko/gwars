@@ -9,8 +9,9 @@ Rails.application.routes.draw do
   resources :battles, only: [:index, :new, :create, :show] do
     member do
       post :accept
+      post :aim, to: "battle_turns#aim"
+      post :move, to: "battle_turns#move"
     end
-    resources :battle_actions, only: [:create]
   end
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

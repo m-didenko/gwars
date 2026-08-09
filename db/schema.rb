@@ -10,27 +10,42 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_08_185613) do
-  create_table "battle_actions", force: :cascade do |t|
+ActiveRecord::Schema[7.1].define(version: 2026_08_09_120000) do
+  create_table "battle_turns", force: :cascade do |t|
     t.integer "battle_id", null: false
-    t.integer "character_id", null: false
-    t.integer "action_type"
+    t.integer "turn_number", null: false
+    t.integer "attacker_id", null: false
+    t.integer "defender_id", null: false
+    t.integer "attacker_position", null: false
+    t.decimal "aim_x", precision: 6, scale: 2
+    t.integer "move_delta"
+    t.integer "defender_position_before"
+    t.integer "defender_position_after"
+    t.decimal "distance", precision: 6, scale: 2
+    t.boolean "hit"
     t.integer "damage"
-    t.integer "target_hp_after"
+    t.integer "defender_hp_before"
+    t.integer "defender_hp_after"
+    t.datetime "resolved_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["battle_id"], name: "index_battle_actions_on_battle_id"
-    t.index ["character_id"], name: "index_battle_actions_on_character_id"
+    t.index ["battle_id", "turn_number"], name: "index_battle_turns_on_battle_id_and_turn_number", unique: true
+    t.index ["battle_id"], name: "index_battle_turns_on_battle_id"
   end
 
   create_table "battles", force: :cascade do |t|
     t.integer "player_one_id"
     t.integer "player_two_id"
-    t.integer "current_turn_id"
     t.integer "winner_id"
     t.integer "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "player_one_hp"
+    t.integer "player_two_hp"
+    t.integer "player_one_position"
+    t.integer "player_two_position"
+    t.integer "attacker_id"
+    t.integer "turn_number", default: 0, null: false
     t.index ["player_one_id"], name: "index_battles_on_player_one_id"
     t.index ["player_two_id"], name: "index_battles_on_player_two_id"
   end
@@ -38,7 +53,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_08_185613) do
   create_table "characters", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name"
-    t.integer "hp", default: 100, null: false
     t.integer "max_hp", default: 100, null: false
     t.integer "attack", default: 10, null: false
     t.integer "defense", default: 2, null: false
@@ -60,7 +74,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_08_185613) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
-  add_foreign_key "battle_actions", "battles"
-  add_foreign_key "battle_actions", "characters"
+  add_foreign_key "battle_turns", "battles"
   add_foreign_key "characters", "users"
 end
