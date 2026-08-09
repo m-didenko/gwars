@@ -34,6 +34,7 @@ export default class extends Controller {
   static targets = [
     "scene", "tankOne", "tankTwo", "ghost", "moveRange", "aimArc", "aimDrop",
     "crosshair", "crosshairLabel", "projectile", "explosion",
+    "damagePopup", "damageText",
     "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo", "turnNumber", "roleLabel",
     "aimPanel", "infoPanel", "movePanel", "waitPanel", "acceptPanel", "resultPanel",
     "fireButton", "targetOut", "angleOut", "positionOut",
@@ -45,13 +46,13 @@ export default class extends Controller {
     mySide: String,
     nameOne: String,
     nameTwo: String,
-    maxDamage: Number,
     state: Object
   }
 
   connect() {
     this.animating = false
     this.submitting = false
+    this.damageToken = 0
     this.aimWorld = null
     this.myAim = null
     this.myMove = null
@@ -445,7 +446,13 @@ export default class extends Controller {
       await rolling
 
       await this.explode(to, turn.hit)
-      if (turn.damage > 0) await this.drainHp(defenderSide, turn.hpBefore, turn.hpAfter)
+
+      if (turn.damage > 0) {
+        // Deliberately not awaited: the number lingers for three seconds while
+        // play carries on.
+        this.showDamage(turn.defenderTo, turn.damage)
+        await this.drainHp(defenderSide, turn.hpBefore, turn.hpAfter)
+      }
     }
 
     this.animating = false
@@ -463,6 +470,33 @@ export default class extends Controller {
 
     this.explosionTarget.setAttribute("opacity", "0")
     this.sceneTarget.classList.remove("is-shaking")
+  }
+
+  // Floats the damage above the tank that took it and clears after 3s. A newer
+  // hit cancels an older popup rather than fighting it for the same element.
+  async showDamage(unit, amount) {
+    const token = ++this.damageToken
+    const x = worldToX(unit)
+    const top = VIEW.ground - 56
+    const alive = () => this.damageToken === token
+
+    this.damageTextTarget.textContent = `-${amount}`
+    this.damagePopupTarget.setAttribute("transform", `translate(${x}, ${top})`)
+    this.damagePopupTarget.setAttribute("opacity", "1")
+
+    await this.tween(600, (p) => {
+      if (!alive()) return
+      this.damagePopupTarget.setAttribute("transform", `translate(${x}, ${top - p * 30})`)
+    })
+    if (!alive()) return
+
+    await new Promise((resolve) => setTimeout(resolve, 1900))
+    if (!alive()) return
+
+    await this.tween(500, (p) => {
+      if (alive()) this.damagePopupTarget.setAttribute("opacity", String(1 - p))
+    })
+    if (alive()) this.damagePopupTarget.setAttribute("opacity", "0")
   }
 
   drainHp(side, before, after) {

@@ -10,7 +10,6 @@
      data-battle-my-side-value="<%= @battle.side_of(current_character) %>"
      data-battle-name-one-value="<%= @battle.player_one.name %>"
      data-battle-name-two-value="<%= @battle.player_two.name %>"
-     data-battle-max-damage-value="<%= current_character.attack * 3 %>"
      data-battle-state-value="<%= @battle.state_payload(current_character).to_json %>">
 
   <header class="hud">
@@ -62,7 +61,9 @@
       <dl>
         <div><dt>TARGET</dt><dd data-battle-target="targetOut">—</dd></div>
         <div><dt>ANGLE</dt><dd data-battle-target="angleOut">—</dd></div>
-        <div><dt>MAX DAMAGE</dt><dd><%= current_character.attack * 3 %></dd></div>
+        <div><dt>DEAD CENTRE</dt><dd><%= Battle::DAMAGE_BANDS.first.last %></dd></div>
+        <div><dt>TREADS</dt><dd><%= Battle::DAMAGE_BANDS[2].last %></dd></div>
+        <div><dt>SHRAPNEL</dt><dd><%= Battle::DAMAGE_BANDS.last.last %></dd></div>
         <div><dt>WIND</dt><dd>0</dd></div>
       </dl>
     </div>

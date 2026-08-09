@@ -133,6 +133,17 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 .ghost.is-locked rect,
 .ghost.is-locked circle { fill: var(--gold); }
 .ruler-label { fill: #8f9aa6; font-size: 16px; font-family: inherit; }
+
+.damage-popup {
+  fill: #ff7a68;
+  font-size: 30px;
+  font-weight: bold;
+  font-family: inherit;
+  paint-order: stroke;
+  stroke: #10151c;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
 .ghost { pointer-events: none; }
 
 /* -------------------------------------------------------------- controls */

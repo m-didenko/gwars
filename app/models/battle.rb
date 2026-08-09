@@ -3,7 +3,21 @@ class Battle < ApplicationRecord
   FIELD_MIN = 0
   FIELD_MAX = 100
   TANK_LENGTH = 5
-  TANK_HALF = TANK_LENGTH / 2.0   # only a shell landing this close to the centre does anything
+  TANK_HALF = TANK_LENGTH / 2.0   # anything closer than this is a hit on the hull
+
+  # Damage by how far the shell landed from the tank's centre. The tank is 5
+  # long, so the first three bands are one-unit slices of the hull — dead centre
+  # hurts most, the treads least — and the last two are shrapnel landing just
+  # short or just past it. The exact figure is rolled inside the band.
+  DAMAGE_BANDS = [
+    [0.5, 25..30],
+    [1.5, 15..20],
+    [2.5, 5..10],
+    [3.5, 2..4],
+    [4.5, 1..2]
+  ].freeze
+
+  MAX_DAMAGE = DAMAGE_BANDS.first.last.max
   MAX_MOVE = 9                    # the defender may roll anywhere within this
   MOVE_PRESETS = [-9, -6, -3, 0, 3, 6, 9].freeze # shortcuts for the same range
   MIN_SEPARATION = 12             # tanks may never close in tighter than this
@@ -172,7 +186,7 @@ class Battle < ApplicationRecord
     moved_to = clamp_position(moved_from + turn.move_delta, position_for(attacker))
 
     distance = (turn.aim_x.to_f - moved_to).abs
-    damage = damage_for(distance, defending)
+    damage = damage_for(distance)
     hp_before = hp_for(defending)
     hp_after = [hp_before - damage, 0].max
 
@@ -180,7 +194,8 @@ class Battle < ApplicationRecord
       defender_position_before: moved_from,
       defender_position_after: moved_to,
       distance: distance,
-      hit: damage.positive?,
+      # Only a hit on the hull; shrapnel still does damage but reads differently.
+      hit: distance <= TANK_HALF,
       damage: damage,
       defender_hp_before: hp_before,
       defender_hp_after: hp_after,
@@ -203,14 +218,10 @@ class Battle < ApplicationRecord
     open_turn! if active?
   end
 
-  # A clean miss does nothing at all — you have to actually land the shell on
-  # the hull.
-  def damage_for(distance, defending)
-    return 0 if distance > TANK_HALF
+  def damage_for(distance)
+    band = DAMAGE_BANDS.find { |limit, _| distance <= limit }
 
-    # Dead centre lands full damage, the edge of the treads lands ~45%.
-    ratio = 1 - (distance / TANK_HALF) * 0.55
-    [(attacker.attack * 3 * ratio).round - defending.defense, 1].max
+    band ? rand(band.last) : 0
   end
 
   def clamp_position(position, opponent_position)

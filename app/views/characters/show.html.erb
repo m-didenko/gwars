@@ -1,9 +1,14 @@
 <h1><%= @character.name %></h1>
 
+<p class="tag">Max HP: <strong><%= @character.max_hp %></strong></p>
+
+<h2>Damage by where the shell lands</h2>
 <ul class="card-list">
-  <li><span>Max HP</span><strong><%= @character.max_hp %></strong></li>
-  <li><span>Firepower (max damage)</span><strong><%= @character.attack * 3 %></strong></li>
-  <li><span>Armor</span><strong><%= @character.defense %></strong></li>
+  <li><span>Dead centre</span><strong><%= Battle::DAMAGE_BANDS[0].last %></strong></li>
+  <li><span>Mid hull</span><strong><%= Battle::DAMAGE_BANDS[1].last %></strong></li>
+  <li><span>Treads</span><strong><%= Battle::DAMAGE_BANDS[2].last %></strong></li>
+  <li><span>Shrapnel, 1 unit out</span><strong><%= Battle::DAMAGE_BANDS[3].last %></strong></li>
+  <li><span>Shrapnel, 2 units out</span><strong><%= Battle::DAMAGE_BANDS[4].last %></strong></li>
 </ul>
 
 <p class="back-link"><%= link_to "← Back to battles", battles_path %></p>
