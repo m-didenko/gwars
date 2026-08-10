@@ -35,7 +35,8 @@ export default class extends Controller {
     "scene", "tankOne", "tankTwo", "ghost", "moveRange", "aimArc", "aimDrop",
     "crosshair", "crosshairLabel", "projectile", "explosion",
     "damagePopup", "damageText",
-    "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo", "turnNumber", "roleLabel",
+    "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo",
+    "missOne", "missTwo", "missTextOne", "missTextTwo", "turnNumber", "roleLabel",
     "clock", "clockValue",
     "aimPanel", "infoPanel", "movePanel", "waitPanel", "acceptPanel", "resultPanel",
     "fireButton", "targetOut", "angleOut", "positionOut",
@@ -156,6 +157,8 @@ export default class extends Controller {
     this.placeTanks()
     this.setHp("one", state.hp.one)
     this.setHp("two", state.hp.two)
+    this.setMissedTurns("one", state.missedTurns.one)
+    this.setMissedTurns("two", state.missedTurns.two)
 
     this.turnNumberTarget.textContent = state.status === "pending" ? "READY?" : `TURN ${state.turnNumber}`
     this.roleLabelTarget.textContent = ROLE_LABELS[role]
@@ -223,6 +226,12 @@ export default class extends Controller {
         ? "WAITING FOR OPPONENT"
         : decided ? "LOCKED IN" : lateTitle
 
+      const myMissStreak = state.missedTurns[this.mySideValue]
+      const missesLeft = state.maxMissedTurns - myMissStreak
+      const forfeitWarning = !decided && myMissStreak > 0
+        ? ` ${missesLeft} more miss${missesLeft === 1 ? "" : "es"} in a row and you forfeit.`
+        : ""
+
       this.waitNoteTarget.textContent = pending
         ? `${this.nameValue("two")} has not accepted the challenge yet.`
         : decided
@@ -230,8 +239,8 @@ export default class extends Controller {
             ? "Shot locked in. Waiting for the enemy to move…"
             : "Move locked in. Waiting for the enemy to fire…")
           : (role === "attacker"
-            ? "Out of time — this round you do not fire."
-            : "Out of time — this round you stay where you are.")
+            ? `Out of time — this round you do not fire.${forfeitWarning}`
+            : `Out of time — this round you stay where you are.${forfeitWarning}`)
     }
 
     if (state.status === "finished") {
@@ -687,6 +696,16 @@ export default class extends Controller {
     const text = side === "one" ? this.hpTextOneTarget : this.hpTextTwoTarget
 
     bar.style.width = `${clamp((value / max) * 100, 0, 100)}%`
+    text.textContent = value
+  }
+
+  // A streak of zero means nothing to warn about, so the badge stays hidden
+  // until the first missed turn — no point showing "0/5" at rest.
+  setMissedTurns(side, value) {
+    const badge = side === "one" ? this.missOneTarget : this.missTwoTarget
+    const text = side === "one" ? this.missTextOneTarget : this.missTextTwoTarget
+
+    this.toggle(badge, value > 0)
     text.textContent = value
   }
 

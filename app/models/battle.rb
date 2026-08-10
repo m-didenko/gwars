@@ -28,6 +28,12 @@ class Battle < ApplicationRecord
   # still, so a battle can never stall on someone who walked away.
   TURN_SECONDS = 30
 
+  # A player who sits out five turns running — attacker not firing, defender
+  # not rolling — forfeits. Without this an abandoned battle just sits open
+  # forever: nobody watching means resolve_if_expired! never gets nudged, and
+  # even if it did, a walked-away opponent would otherwise never actually lose.
+  MAX_MISSED_TURNS = 5
+
   belongs_to :player_one, class_name: "Character"
   belongs_to :player_two, class_name: "Character"
   belongs_to :attacker, class_name: "Character", optional: true
@@ -118,6 +124,12 @@ class Battle < ApplicationRecord
       hp: { one: player_one_hp, two: player_two_hp },
       maxHp: { one: player_one.max_hp, two: player_two.max_hp },
       committed: { attacker: turn&.fired? || false, defender: turn&.moved? || false },
+      # How many turns in a row each player has sat out. Not a secret — it is
+      # just a tally of the attackerTimedOut/defenderTimedOut flags already
+      # visible in every resolved turn's replay — so it is fine on the shared
+      # stream.
+      missedTurns: { one: player_one_miss_streak, two: player_two_miss_streak },
+      maxMissedTurns: MAX_MISSED_TURNS,
       turnSeconds: TURN_SECONDS,
       # Seconds left rather than the wall-clock deadline: the browser counts
       # down from whatever number it receives, so a device with a skewed clock
@@ -248,6 +260,7 @@ class Battle < ApplicationRecord
   # Both decisions are in: slide the defender, drop the shell, apply damage,
   # then hand the gun to the other player.
   def resolve_turn!(turn)
+    attacking = attacker
     defending = defender
     moved_from = position_for(defending)
     # A defender who ran out of time holds still.
@@ -277,9 +290,17 @@ class Battle < ApplicationRecord
     assign_position(defending, moved_to)
     assign_hp(defending, hp_after)
 
+    bump_miss_streak(attacking, turn.attacker_timed_out)
+    bump_miss_streak(defending, turn.defender_timed_out)
+    forfeiter = missed_too_many_turns
+
     if hp_after.zero?
       self.status = :finished
-      self.winner = attacker
+      self.winner = attacking
+      self.attacker = nil
+    elsif forfeiter
+      self.status = :finished
+      self.winner = (forfeiter.id == attacking.id ? defending : attacking)
       self.attacker = nil
     else
       self.attacker = defending
@@ -288,6 +309,29 @@ class Battle < ApplicationRecord
 
     save!
     open_turn! if active?
+  end
+
+  # A hit streak resets the streak; a timeout extends it. Tracked per player,
+  # not per role, because attacker and defender swap every turn — five misses
+  # "in a row" means five of that player's own turns, whichever side they were
+  # standing on each time.
+  def bump_miss_streak(character, missed)
+    assign_miss_streak(character, missed ? miss_streak_for(character) + 1 : 0)
+  end
+
+  def missed_too_many_turns
+    return player_one if player_one_miss_streak >= MAX_MISSED_TURNS
+    return player_two if player_two_miss_streak >= MAX_MISSED_TURNS
+
+    nil
+  end
+
+  def miss_streak_for(character)
+    character.id == player_one_id ? player_one_miss_streak : player_two_miss_streak
+  end
+
+  def assign_miss_streak(character, value)
+    character.id == player_one_id ? self.player_one_miss_streak = value : self.player_two_miss_streak = value
   end
 
   def damage_for(distance)

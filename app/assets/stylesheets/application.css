@@ -66,6 +66,12 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 .hud-side--two .hud-label { color: var(--red); }
 .hud-name { display: block; font-size: 15px; color: var(--ink); letter-spacing: 0; }
 .hud-hp { font-size: 13px; margin: 4px 0 6px; }
+.hud-miss {
+  margin-left: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+}
 
 .hp-track {
   height: 10px;

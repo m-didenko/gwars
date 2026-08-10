@@ -20,6 +20,7 @@
       </div>
       <div class="hud-hp">
         HP: <span data-battle-target="hpTextOne">—</span> / <%= @battle.player_one.max_hp %>
+        <span class="hud-miss" data-battle-target="missOne" hidden>MISSED <span data-battle-target="missTextOne">—</span>/<%= Battle::MAX_MISSED_TURNS %></span>
       </div>
       <div class="hp-track"><div class="hp-fill" data-battle-target="hpBarOne"></div></div>
     </div>
@@ -39,6 +40,7 @@
       </div>
       <div class="hud-hp">
         HP: <span data-battle-target="hpTextTwo">—</span> / <%= @battle.player_two.max_hp %>
+        <span class="hud-miss" data-battle-target="missTwo" hidden>MISSED <span data-battle-target="missTextTwo">—</span>/<%= Battle::MAX_MISSED_TURNS %></span>
       </div>
       <div class="hp-track"><div class="hp-fill" data-battle-target="hpBarTwo"></div></div>
     </div>

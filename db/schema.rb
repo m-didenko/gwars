@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_10_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_10_171613) do
   create_table "battle_turns", force: :cascade do |t|
     t.integer "battle_id", null: false
     t.integer "turn_number", null: false
@@ -49,6 +49,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_120000) do
     t.integer "player_two_position"
     t.integer "attacker_id"
     t.integer "turn_number", default: 0, null: false
+    t.integer "player_one_miss_streak", default: 0, null: false
+    t.integer "player_two_miss_streak", default: 0, null: false
     t.index ["player_one_id"], name: "index_battles_on_player_one_id"
     t.index ["player_two_id"], name: "index_battles_on_player_two_id"
   end
