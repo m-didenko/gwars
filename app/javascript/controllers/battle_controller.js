@@ -12,6 +12,10 @@ const MAX_MOVE = 9
 // Mirrors Battle::RECENT_LOG_LIMIT — how many rounds state_payload carries
 // before the log has to be expanded to see the rest.
 const RECENT_LOG_LIMIT = 5
+// How far the barrel is allowed to tilt up off horizontal. Purely cosmetic —
+// real elevation for the arc the shell actually flies is much steeper — so
+// it is capped well short of that to keep the tank looking like a tank.
+const MAX_BARREL_ELEVATION = 45
 
 const worldToX = (unit) => VIEW.margin + (unit / 100) * VIEW.span
 const xToWorld = (x) => ((x - VIEW.margin) / VIEW.span) * 100
@@ -35,7 +39,7 @@ const ROLE_LABELS = {
 
 export default class extends Controller {
   static targets = [
-    "scene", "tankOne", "tankTwo", "ghost", "moveRange", "aimArc", "aimDrop",
+    "scene", "tankOne", "tankTwo", "barrelOne", "barrelTwo", "ghost", "moveRange", "aimArc", "aimDrop",
     "crosshair", "crosshairLabel", "projectile", "explosion",
     "damagePopup", "damageText",
     "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo",
@@ -546,6 +550,8 @@ export default class extends Controller {
 
     this.aimArcTarget.classList.toggle("is-locked", locked)
     this.crosshairTarget.classList.toggle("is-locked", locked)
+
+    this.aimBarrel(this.state.attackerSide, from, to)
   }
 
   hideAim() {
@@ -555,12 +561,31 @@ export default class extends Controller {
     this.aimDropTarget.setAttribute("opacity", "0")
     this.aimArcTarget.classList.remove("is-locked")
     this.crosshairTarget.classList.remove("is-locked")
+    this.resetBarrels()
   }
 
   controlPoint(from, to) {
     const rise = clamp(Math.abs(to.x - from.x) * 0.55, 140, 300)
     const topY = Math.min(from.y, to.y)
     return { x: (from.x + to.x) / 2, y: 2 * (topY - rise) - (from.y + to.y) / 2 }
+  }
+
+  // A capped upward tilt, steeper the closer the target — never the real
+  // elevation the arc actually launches on (that would swing past vertical),
+  // just enough to read as "aiming there". Purely vertical, so it needs no
+  // correction for the tank's own scale(facing,1) mirror: a "forward, tilted
+  // up" vector is still "forward, tilted up" once flipped horizontally.
+  aimBarrel(side, from, to) {
+    const distance = Math.abs(to.x - from.x)
+    const elevation = clamp(MAX_BARREL_ELEVATION * (1 - distance / VIEW.span), 0, MAX_BARREL_ELEVATION)
+    const target = side === "one" ? this.barrelOneTarget : this.barrelTwoTarget
+
+    target.setAttribute("transform", `rotate(${(-elevation).toFixed(1)},8,-28.5)`)
+  }
+
+  resetBarrels() {
+    this.barrelOneTarget.setAttribute("transform", "rotate(0,8,-28.5)")
+    this.barrelTwoTarget.setAttribute("transform", "rotate(0,8,-28.5)")
   }
 
   // ---------------------------------------------------------------- moving
@@ -658,6 +683,12 @@ export default class extends Controller {
         const from = this.muzzleFor(turn.attackerSide, turn.attackerPosition)
         const to = { x: worldToX(turn.aimX), y: VIEW.ground }
         const control = this.controlPoint(from, to)
+
+        // hideAim() above already leveled the barrel; hold it on the actual
+        // shot for as long as the shell is in the air rather than snapping
+        // back the instant the crosshair disappears. It returns to neutral
+        // on its own next turn, via the same hideAim().
+        this.aimBarrel(turn.attackerSide, from, to)
 
         this.projectileTarget.setAttribute("opacity", "1")
         await this.tween(1100, (p) => {

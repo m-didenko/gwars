@@ -2,6 +2,12 @@
   A tank drawn around its own centre sitting on y=0, so the caller only has to
   translate the wrapping <g> to the right spot on the ground line.
   `facing` is 1 for a barrel pointing right, -1 for pointing left.
+
+  The barrel is its own group, pivoting on (8,-28.5) — where it meets the
+  turret — so battle_controller.js can swing it with a plain `rotate(angle,8,
+  -28.5)` instead of fighting the tank's own scale(facing,1) mirror. Pass
+  `barrel_target` to make that group addressable; the ghost preview renders
+  the same partial without one and just keeps the barrel level.
 %>
 <g transform="scale(<%= facing %>,1)">
   <rect x="-23" y="-13" width="46" height="13" rx="6.5" fill="<%= tread %>"/>
@@ -13,6 +19,8 @@
   <path d="M-19 -24 L13 -24 L13 -21 L-19 -21 Z" fill="<%= trim %>" opacity="0.6"/>
 
   <rect x="-9" y="-34" width="19" height="11" rx="4" fill="<%= trim %>"/>
-  <rect x="8" y="-31" width="22" height="5" rx="2.5" fill="<%= trim %>"/>
-  <rect x="27" y="-32.5" width="5" height="8" rx="2" fill="<%= tread %>"/>
+  <g data-battle-target="<%= local_assigns[:barrel_target] %>" transform="rotate(0,8,-28.5)">
+    <rect x="8" y="-31" width="22" height="5" rx="2.5" fill="<%= trim %>"/>
+    <rect x="27" y="-32.5" width="5" height="8" rx="2" fill="<%= tread %>"/>
+  </g>
 </g>

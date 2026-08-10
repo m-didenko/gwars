@@ -73,10 +73,10 @@
   <line data-battle-target="aimDrop" class="aim-drop" opacity="0"/>
 
   <g data-battle-target="tankOne">
-    <%= render "battles/tank", facing: 1, body: "#4a90e2", trim: "#2c5d8f", tread: "#22303f" %>
+    <%= render "battles/tank", facing: 1, body: "#4a90e2", trim: "#2c5d8f", tread: "#22303f", barrel_target: "barrelOne" %>
   </g>
   <g data-battle-target="tankTwo">
-    <%= render "battles/tank", facing: -1, body: "#e2574a", trim: "#8f322c", tread: "#3f2422" %>
+    <%= render "battles/tank", facing: -1, body: "#e2574a", trim: "#8f322c", tread: "#3f2422", barrel_target: "barrelTwo" %>
   </g>
 
   <circle data-battle-target="projectile" r="5" fill="#ffe08a" stroke="#c8791b" stroke-width="2" opacity="0"/>
