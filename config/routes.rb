@@ -6,6 +6,10 @@ Rails.application.routes.draw do
 
   resource :character, only: [:new, :create, :show]
 
+  get "lobby", to: "lobby#show", as: :lobby
+  post "lobby/join", to: "lobby#join", as: :join_lobby
+  post "lobby/leave", to: "lobby#leave", as: :leave_lobby
+
   resources :battles, only: [:index, :new, :create, :show] do
     member do
       get :state
@@ -20,5 +24,5 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  root "battles#index"
+  root "lobby#show"
 end

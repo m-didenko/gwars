@@ -1,8 +1,13 @@
-<h1>Tank Battle Online</h1>
+<h1>Duels</h1>
 
 <p class="tag">
   COMMANDER: <strong><%= current_character.name %></strong> ·
   MAX HP <%= current_character.max_hp %> · DEAD CENTRE HIT <%= Battle::DAMAGE_BANDS.first.last %>
+</p>
+
+<p class="hint">
+  Pick a specific opponent here. To be matched with whoever is available,
+  <%= link_to "use the lobby", lobby_path %> instead.
 </p>
 
 <h2>Challenge a commander</h2>

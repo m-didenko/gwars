@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_09_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_10_120000) do
   create_table "battle_turns", force: :cascade do |t|
     t.integer "battle_id", null: false
     t.integer "turn_number", null: false
@@ -63,6 +63,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_09_130000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_characters_on_user_id"
+  end
+
+  create_table "queue_entries", force: :cascade do |t|
+    t.integer "character_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["character_id"], name: "index_queue_entries_on_character_id", unique: true
+    t.index ["created_at"], name: "index_queue_entries_on_created_at"
   end
 
   create_table "users", force: :cascade do |t|

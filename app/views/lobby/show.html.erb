@@ -1,0 +1,45 @@
+<%#
+  The lobby is driven entirely by lobby_controller.js: the button, the count of
+  waiting commanders and the jump into a duel all happen without reloading, so
+  nothing dynamic is rendered here beyond the starting state.
+%>
+<h1>Battle lobby</h1>
+
+<p class="tag">
+  COMMANDER: <strong><%= current_character.name %></strong> ·
+  MAX HP <%= current_character.max_hp %> · DEAD CENTRE HIT <%= Battle::DAMAGE_BANDS.first.last %>
+</p>
+
+<section class="lobby"
+         data-controller="lobby"
+         data-lobby-state-value="<%= lobby_state.to_json %>">
+  <p class="lobby-status" data-lobby-target="status">Checking the queue…</p>
+
+  <button type="button" class="btn btn--primary btn--wide"
+          data-lobby-target="button" data-action="lobby#toggle">JOIN THE QUEUE</button>
+
+  <p class="hint">
+    You are dropped straight into a duel as soon as another commander is
+    waiting. Four in the queue means two duels, not one — and a lone commander
+    simply waits for the next.
+  </p>
+</section>
+
+<h2>Battles in progress</h2>
+<% if @ongoing.empty? %>
+  <ul class="card-list"><li>Nothing running. Join the queue above.</li></ul>
+<% else %>
+  <ul class="card-list">
+    <% @ongoing.each do |battle| %>
+      <li>
+        <%= link_to "#{battle.player_one.name} vs #{battle.player_two.name}", battle_path(battle) %>
+        <span class="tag">
+          <%= battle.status.upcase %>
+          <%= "· TURN #{battle.turn_number}" if battle.active? %>
+        </span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<p class="back-link"><%= link_to "Challenge someone specific →", battles_path %></p>

@@ -16,6 +16,10 @@
       <%= link_to "TANK BATTLE ONLINE", root_path, class: "brand" %>
       <nav>
         <% if user_signed_in? %>
+          <% if current_character %>
+            <%= link_to "Lobby", lobby_path %> |
+            <%= link_to "Duels", battles_path %> |
+          <% end %>
           <span class="tag"><%= current_user.email %></span>
           <%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %>
         <% else %>

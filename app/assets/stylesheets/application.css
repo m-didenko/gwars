@@ -264,6 +264,40 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 
 .back-link { margin-top: 18px; }
 
+/* ----------------------------------------------------------------- lobby */
+
+.lobby {
+  border: 1px solid var(--panel-edge);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 24px;
+  margin: 18px 0 28px;
+  text-align: center;
+}
+
+.lobby-status {
+  margin: 0 0 16px;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+.lobby .hint { margin: 14px 0 0; }
+
+.btn--wide { min-width: 260px; padding: 14px 20px; font-size: 15px; }
+
+/* Waiting is the one state worth marking: the page looks otherwise idle. */
+.lobby.is-queued { border-color: #6d5a2b; }
+.lobby.is-queued .lobby-status { color: var(--gold); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .lobby.is-queued .lobby-status { animation: lobby-wait 1.6s ease-in-out infinite; }
+}
+
+@keyframes lobby-wait {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 /* ------------------------------------------------------------- listings */
 
 .card-list { list-style: none; padding: 0; display: grid; gap: 10px; }
