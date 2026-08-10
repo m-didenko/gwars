@@ -54,7 +54,14 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        this.statusTarget.textContent = "Could not reach the lobby. Try again."
+        // Already fighting — the guard answers with where we are supposed to be.
+        const problem = await response.json().catch(() => ({}))
+
+        if (problem.battleId) {
+          this.enter(problem.battleId)
+        } else {
+          this.statusTarget.textContent = problem.error ?? "Could not reach the lobby. Try again."
+        }
         return
       }
 

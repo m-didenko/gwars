@@ -54,9 +54,15 @@ class Battle < ApplicationRecord
         player_two_position: START_POSITIONS[:two]
       )
       open_turn!
+
+      # Starting a duel takes both players out of the lobby. Matchmaking already
+      # claimed their places, but a challenge accepted from the duels page has
+      # not — and someone who is fighting must not be waiting for a second fight.
+      QueueEntry.where(character_id: [player_one_id, player_two_id]).delete_all
     end
 
     broadcast_state!
+    LobbyChannel.queue_changed!
   end
 
   def participant?(character)
