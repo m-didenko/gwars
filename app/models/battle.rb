@@ -19,7 +19,6 @@ class Battle < ApplicationRecord
 
   MAX_DAMAGE = DAMAGE_BANDS.first.last.max
   MAX_MOVE = 9                    # the defender may roll anywhere within this
-  MOVE_PRESETS = [-9, -6, -3, 0, 3, 6, 9].freeze # shortcuts for the same range
   MIN_SEPARATION = 12             # tanks may never close in tighter than this
   START_POSITIONS = { one: 20, two: 80 }.freeze
 
@@ -33,6 +32,11 @@ class Battle < ApplicationRecord
   # forever: nobody watching means resolve_if_expired! never gets nudged, and
   # even if it did, a walked-away opponent would otherwise never actually lose.
   MAX_MISSED_TURNS = 5
+
+  # How many resolved rounds the battle log keeps on screen. A short, scrolling
+  # window rather than the whole history — plenty to see the damage mechanics
+  # in action without turning the panel into a full match transcript.
+  RECENT_LOG_LIMIT = 5
 
   belongs_to :player_one, class_name: "Character"
   belongs_to :player_two, class_name: "Character"
@@ -135,7 +139,10 @@ class Battle < ApplicationRecord
       # down from whatever number it receives, so a device with a skewed clock
       # still agrees with the server about when the turn ends.
       turnEndsIn: (turn&.seconds_left if active?),
-      replay: last_resolved_turn&.animation_payload(self)
+      replay: last_resolved_turn&.animation_payload(self),
+      # Newest first, like any activity feed. Safe on the shared stream for the
+      # same reason a single replay is: a resolved round has no secrets left.
+      log: recent_turns.map { |t| t.animation_payload(self) }
     }
 
     if viewer && turn
@@ -154,6 +161,10 @@ class Battle < ApplicationRecord
 
   def last_resolved_turn
     battle_turns.where.not(resolved_at: nil).order(:turn_number).last
+  end
+
+  def recent_turns(limit = RECENT_LOG_LIMIT)
+    battle_turns.where.not(resolved_at: nil).order(turn_number: :desc).limit(limit)
   end
 
   # The attacker commits the coordinate they are firing at. The defender never

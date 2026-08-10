@@ -188,8 +188,6 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 }
 
 .panel--wide { grid-column: 1 / -1; }
-.panel--move { border-color: #6d2b26; }
-.panel--aim { border-color: #2b4d73; }
 .panel--result { text-align: center; }
 .panel.is-busy { opacity: 0.45; pointer-events: none; }
 .panel.is-locked { opacity: 0.75; }
@@ -200,15 +198,28 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
   letter-spacing: 0.12em;
   color: var(--muted);
 }
-.panel--aim h2 { color: var(--blue); }
-.panel--move h2 { color: var(--red); }
 
 .hint, .locked-note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
 
-.panel dl { margin: 0; display: grid; gap: 8px; }
-.panel dl > div { display: flex; justify-content: space-between; font-size: 13px; }
-.panel dt { color: var(--muted); letter-spacing: 0.06em; }
-.panel dd { margin: 0; font-weight: bold; }
+.log-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.log-empty { color: var(--muted); }
+
+.log-toggle {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+}
+.log-toggle:hover { text-decoration: none; }
 
 .btn {
   display: inline-block;
@@ -227,37 +238,6 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn--primary { background: #7d2820; border-color: #a5382c; }
 .btn--primary:hover { background: #9a3227; }
-
-.btn--fire {
-  width: 100%;
-  padding: 16px;
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffd98a;
-  background: #23303f;
-  border-color: #3d5470;
-}
-.btn--fire:not(:disabled):hover { background: #2c3d52; }
-
-.move-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-
-.move-btn {
-  flex: 1 1 0;
-  min-width: 52px;
-  padding: 14px 0;
-  font: inherit;
-  font-size: 17px;
-  border-radius: 8px;
-  border: 1px solid var(--panel-edge);
-  background: #1b2532;
-  color: var(--ink);
-  cursor: pointer;
-}
-
-.move-btn:hover { background: #a5382c; border-color: #d1503f; }
-
-.move-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.move-footer span { font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }
 
 .ticker {
   padding: 12px 18px;

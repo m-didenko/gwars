@@ -50,47 +50,21 @@
 
   <p class="flash flash--alert battle-error" data-battle-target="error" hidden></p>
 
+  <div class="ticker" data-battle-target="ticker" hidden></div>
+
   <section class="controls">
-    <div class="panel panel--aim" data-battle-target="aimPanel" hidden>
-      <h2>AIM YOUR SHOT</h2>
-      <p class="hint">
-        Aim with the mouse, then click the field — or press FIRE. The marked band
-        is everywhere the enemy could roll to. Miss the
-        <%= Battle::TURN_SECONDS %>-second clock and you do not fire at all.
-      </p>
-      <button type="button" class="btn btn--fire"
-              data-battle-target="fireButton" data-action="battle#fire" disabled>FIRE</button>
-    </div>
-
-    <div class="panel panel--info" data-battle-target="infoPanel" hidden>
-      <h2>WEAPON INFO</h2>
-      <dl>
-        <div><dt>TARGET</dt><dd data-battle-target="targetOut">—</dd></div>
-        <div><dt>ANGLE</dt><dd data-battle-target="angleOut">—</dd></div>
-        <div><dt>DEAD CENTRE</dt><dd><%= Battle::DAMAGE_BANDS.first.last %></dd></div>
-        <div><dt>TREADS</dt><dd><%= Battle::DAMAGE_BANDS[2].last %></dd></div>
-        <div><dt>SHRAPNEL</dt><dd><%= Battle::DAMAGE_BANDS.last.last %></dd></div>
-        <div><dt>WIND</dt><dd>0</dd></div>
-      </dl>
-    </div>
-
-    <div class="panel panel--move panel--wide" data-battle-target="movePanel" hidden>
-      <h2>MOVE YOUR TANK</h2>
-      <p class="hint">
-        Click inside the marked band to roll there — that locks your move in.
-        The enemy is aiming right now, and if the
-        <%= Battle::TURN_SECONDS %>-second clock runs out you stay put.
-      </p>
-      <div class="move-options">
-        <% Battle::MOVE_PRESETS.each do |delta| %>
-          <button type="button" class="move-btn"
-                  data-delta="<%= delta %>"
-                  data-action="battle#selectMove"><%= delta.positive? ? "+#{delta}" : delta %></button>
-        <% end %>
-      </div>
-      <div class="move-footer">
-        <span>ROLL TO: <strong data-battle-target="positionOut">—</strong></span>
-      </div>
+    <%#
+      No separate aim/move panels: clicking the field already aims-and-fires or
+      rolls-and-locks in one motion, so a panel just for that would duplicate
+      what the tank is doing right in front of you. What is worth a panel is a
+      record of what just happened — the log doubles as the tutorial for how
+      distance turns into damage.
+    %>
+    <div class="panel panel--wide panel--log">
+      <h2>BATTLE LOG</h2>
+      <ul class="log-list" data-battle-target="logList"></ul>
+      <a href="#" class="log-toggle" data-battle-target="logToggle"
+         data-action="battle#toggleLog" hidden>Show full battle log</a>
     </div>
 
     <div class="panel panel--wide" data-battle-target="waitPanel" hidden>
@@ -110,8 +84,4 @@
       <%= link_to "Back to lobby", lobby_path, class: "btn" %>
     </div>
   </section>
-
-  <footer class="ticker" data-battle-target="ticker" hidden></footer>
 </div>
-
-<p class="back-link"><%= link_to "← Back to lobby", lobby_path %></p>

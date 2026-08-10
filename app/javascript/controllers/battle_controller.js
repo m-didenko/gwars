@@ -9,6 +9,9 @@ const MUZZLE = { forward: 32, height: 28 }
 const MIN_SEPARATION = 12
 const TANK_HALF = 2.5
 const MAX_MOVE = 9
+// Mirrors Battle::RECENT_LOG_LIMIT — how many rounds state_payload carries
+// before the log has to be expanded to see the rest.
+const RECENT_LOG_LIMIT = 5
 
 const worldToX = (unit) => VIEW.margin + (unit / 100) * VIEW.span
 const xToWorld = (x) => ((x - VIEW.margin) / VIEW.span) * 100
@@ -38,9 +41,9 @@ export default class extends Controller {
     "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo",
     "missOne", "missTwo", "missTextOne", "missTextTwo", "turnNumber", "roleLabel",
     "clock", "clockValue",
-    "aimPanel", "infoPanel", "movePanel", "waitPanel", "acceptPanel", "resultPanel",
-    "fireButton", "targetOut", "angleOut", "positionOut",
-    "waitTitle", "waitNote", "resultTitle", "resultNote", "ticker", "error"
+    "waitPanel", "acceptPanel", "resultPanel",
+    "waitTitle", "waitNote", "resultTitle", "resultNote", "ticker", "error",
+    "logList", "logToggle"
   ]
 
   static values = {
@@ -65,6 +68,8 @@ export default class extends Controller {
     this.outOfTime = false
     this.nudgedTurn = null
     this.lastRoundNote = ""
+    this.logExpanded = false
+    this.fullLog = null
 
     this.onPointerMove = this.onPointerMove.bind(this)
     this.onPointerLeave = this.onPointerLeave.bind(this)
@@ -167,6 +172,7 @@ export default class extends Controller {
     this.renderPanels(role)
     this.renderTicker(role)
     this.renderMoveRange(role)
+    this.renderLog()
 
     if (this.canMove()) {
       this.previewMove(0)
@@ -196,51 +202,43 @@ export default class extends Controller {
       this.placeGhost(landing)
       this.ghostTarget.setAttribute("opacity", "0.7")
       this.ghostTarget.classList.add("is-locked")
-      this.positionOutTarget.textContent = landing
     }
   }
 
   renderPanels(role) {
     const state = this.state
     const decided = role === "attacker" ? state.committed.attacker : state.committed.defender
-    // Running out of time closes the panel just like deciding does — there is
-    // nothing left to choose either way.
-    const committed = decided || this.outOfTime
+    // Simply having decided needs no panel of its own — the ticker already
+    // says "Enemy is deciding…" / "Enemy is lining up a shot…", which is the
+    // same fact from the other side. A panel is only worth showing once
+    // there is something to warn about: the clock ran out on you, or the
+    // opponent has not even accepted the duel yet.
+    const late = this.outOfTime && !decided
     const acceptable = state.status === "pending" && this.mySideValue === "two"
+    const pending = state.status === "pending"
 
-    this.toggle(this.aimPanelTarget, role === "attacker" && !committed)
-    this.toggle(this.infoPanelTarget, role === "attacker" && !committed)
-    this.toggle(this.movePanelTarget, role === "defender" && !committed)
     this.toggle(this.acceptPanelTarget, acceptable)
     this.toggle(this.resultPanelTarget, state.status === "finished")
 
-    const waiting = (state.status === "active" && committed) ||
-      (state.status === "pending" && !acceptable)
+    const waiting = (state.status === "active" && late) || (pending && !acceptable)
     this.toggle(this.waitPanelTarget, waiting)
 
     if (waiting) {
-      const pending = state.status === "pending"
       const lateTitle = role === "attacker" ? "NO SHOT" : "HOLDING STILL"
 
-      this.waitTitleTarget.textContent = pending
-        ? "WAITING FOR OPPONENT"
-        : decided ? "LOCKED IN" : lateTitle
+      this.waitTitleTarget.textContent = pending ? "WAITING FOR OPPONENT" : lateTitle
 
       const myMissStreak = state.missedTurns[this.mySideValue]
       const missesLeft = state.maxMissedTurns - myMissStreak
-      const forfeitWarning = !decided && myMissStreak > 0
+      const forfeitWarning = myMissStreak > 0
         ? ` ${missesLeft} more miss${missesLeft === 1 ? "" : "es"} in a row and you forfeit.`
         : ""
 
       this.waitNoteTarget.textContent = pending
         ? `${this.nameValue("two")} has not accepted the challenge yet.`
-        : decided
-          ? (role === "attacker"
-            ? "Shot locked in. Waiting for the enemy to move…"
-            : "Move locked in. Waiting for the enemy to fire…")
-          : (role === "attacker"
-            ? `Out of time — this round you do not fire.${forfeitWarning}`
-            : `Out of time — this round you stay where you are.${forfeitWarning}`)
+        : (role === "attacker"
+          ? `Out of time — this round you do not fire.${forfeitWarning}`
+          : `Out of time — this round you stay where you are.${forfeitWarning}`)
     }
 
     if (state.status === "finished") {
@@ -262,6 +260,95 @@ export default class extends Controller {
       : (state.committed.attacker ? "Enemy has locked their shot." : "Enemy is lining up a shot…")
 
     this.tickerTarget.textContent = this.lastRoundNote ? `${this.lastRoundNote} ${live}` : live
+  }
+
+  // Newest turn first, same order the server sends. This is the only place a
+  // new player sees *why* a shot did what it did — the panels used to spell
+  // out the damage bands, but a running log of real results teaches the same
+  // thing better. Collapsed, it shows only what state_payload carried (the
+  // last RECENT_LOG_LIMIT rounds); expanded, it shows whatever toggleLog
+  // fetched.
+  renderLog() {
+    const recent = this.state.log || []
+    const entries = (this.logExpanded ? this.fullLog : recent) || []
+    this.logListTarget.innerHTML = ""
+
+    if (entries.length === 0) {
+      const li = document.createElement("li")
+      li.className = "log-empty"
+      li.textContent = "No shots fired yet."
+      this.logListTarget.appendChild(li)
+    } else {
+      for (const turn of entries) {
+        const li = document.createElement("li")
+        li.textContent = this.describeTurn(turn)
+        this.logListTarget.appendChild(li)
+      }
+    }
+
+    // Nothing more to reveal once the recent window already holds everything.
+    this.toggle(this.logToggleTarget, this.logExpanded || recent.length >= RECENT_LOG_LIMIT)
+    this.logToggleTarget.textContent = this.logExpanded ? "Show recent only" : "Show full battle log"
+  }
+
+  // Turn number alone is enough to place a round in order — no separate
+  // line-numbering on top of it.
+  describeTurn(turn) {
+    const attackerName = this.nameValue(turn.attackerSide)
+    const defenderSide = turn.attackerSide === "one" ? "two" : "one"
+    const defenderName = this.nameValue(defenderSide)
+
+    if (turn.attackerTimedOut) {
+      return `Turn ${turn.turnNumber}: ${attackerName} ran out of time and never fired.`
+    }
+
+    if (turn.damage === 0) {
+      return `Turn ${turn.turnNumber}: ${attackerName} missed ${defenderName} completely — no damage.`
+    }
+
+    // Mirrors the band labels in Battle::DAMAGE_BANDS: the closer the shell
+    // lands to centre, the harder it hits. `hit` already marks a landing on
+    // the hull itself; short of that, it is shrapnel — still damage, just less.
+    const landing = turn.distance <= 0.5
+      ? "a dead-centre hit on"
+      : turn.hit
+        ? "a hit on"
+        : "shrapnel damage to"
+
+    const heldStill = turn.defenderTimedOut ? " — held still, out of time" : ""
+
+    return `Turn ${turn.turnNumber}: ${attackerName} scored ${landing} ${defenderName}${heldStill} — ${turn.damage} damage.`
+  }
+
+  // Fetched once and cached: the full history only grows by the rounds this
+  // client already saw broadcast, so there is nothing to gain from refetching
+  // on every toggle.
+  async toggleLog(event) {
+    event.preventDefault()
+
+    if (!this.logExpanded && !this.fullLog) {
+      this.logToggleTarget.textContent = "Loading…"
+      const loaded = await this.loadFullLog()
+      if (!loaded) {
+        this.logToggleTarget.textContent = "Show full battle log"
+        return
+      }
+    }
+
+    this.logExpanded = !this.logExpanded
+    this.renderLog()
+  }
+
+  async loadFullLog() {
+    try {
+      const response = await fetch(`/battles/${this.idValue}/log`, { headers: { "Accept": "application/json" } })
+      if (!response.ok) return false
+
+      this.fullLog = (await response.json()).turns
+      return true
+    } catch {
+      return false
+    }
   }
 
   role() {
@@ -459,12 +546,6 @@ export default class extends Controller {
 
     this.aimArcTarget.classList.toggle("is-locked", locked)
     this.crosshairTarget.classList.toggle("is-locked", locked)
-    if (locked) return
-
-    this.fireButtonTarget.disabled = false
-    this.targetOutTarget.textContent = world.toFixed(1)
-    const angle = Math.atan2(from.y - control.y, control.x - from.x) * (180 / Math.PI)
-    this.angleOutTarget.textContent = `${Math.abs(angle).toFixed(0)}°`
   }
 
   hideAim() {
@@ -474,7 +555,6 @@ export default class extends Controller {
     this.aimDropTarget.setAttribute("opacity", "0")
     this.aimArcTarget.classList.remove("is-locked")
     this.crosshairTarget.classList.remove("is-locked")
-    this.fireButtonTarget.disabled = true
   }
 
   controlPoint(from, to) {
@@ -484,10 +564,6 @@ export default class extends Controller {
   }
 
   // ---------------------------------------------------------------- moving
-
-  selectMove(event) {
-    this.commitMove(Number(event.currentTarget.dataset.delta))
-  }
 
   // How far a click at this point would move us, capped at the roll limit.
   deltaAt(event) {
@@ -503,7 +579,6 @@ export default class extends Controller {
 
     this.placeGhost(landing)
     this.ghostTarget.setAttribute("opacity", landing === from ? "0" : "0.45")
-    this.positionOutTarget.textContent = landing
   }
 
   // Mirrored for the right-hand player so the ghost faces the same way as the
@@ -606,6 +681,16 @@ export default class extends Controller {
     }
 
     this.animating = false
+
+    // The round just resolved made the cached full log one short. If it is on
+    // screen right now, refetch before repainting; otherwise just drop it and
+    // let the next expand pull a fresh copy.
+    if (this.logExpanded) {
+      await this.loadFullLog()
+    } else {
+      this.fullLog = null
+    }
+
     this.renderState()
   }
 

@@ -1,6 +1,6 @@
 class BattlesController < ApplicationController
   before_action :require_character!
-  before_action :set_battle, only: [:show, :state]
+  before_action :set_battle, only: [:show, :state, :log]
 
   def index
     @opponents = Character.where.not(id: current_character&.id).order(:name)
@@ -40,6 +40,17 @@ class BattlesController < ApplicationController
 
     @battle.resolve_if_expired!
     render json: @battle.state_payload(current_character)
+  end
+
+  # The broadcast state only ever carries the last few rounds — a resolved
+  # turn has no secrets, but there is no reason to ship a battle's whole
+  # history on every reconnect. This is the "show me the rest" the log panel
+  # asks for on demand, behind the same participant check as `state`.
+  def log
+    return head :forbidden unless @battle.participant?(current_character)
+
+    turns = @battle.battle_turns.where.not(resolved_at: nil).order(turn_number: :desc)
+    render json: { turns: turns.map { |t| t.animation_payload(@battle) } }
   end
 
   private
