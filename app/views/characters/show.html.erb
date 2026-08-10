@@ -1,6 +1,55 @@
-<h1><%= @character.name %></h1>
+<%#
+  The character page is the landing page (root): a commander's home base
+  between fights, not part of any battle's own render-once/JSON-after
+  contract. It is fine for this one to reload plainly — nothing here streams.
+%>
+<div class="profile"
+     data-controller="character"
+     data-character-life-value="<%= @character.current_life %>"
+     data-character-max-hp-value="<%= @character.max_hp %>">
 
-<p class="tag">Max HP: <strong><%= @character.max_hp %></strong></p>
+  <h1><%= @character.name %></h1>
+  <p class="tag">COMMANDER LEVEL <strong><%= @character.level %></strong></p>
+
+  <section class="stat-card">
+    <div class="stat-card-head">
+      <h2>Experience</h2>
+      <span class="tag"><%= @character.xp_into_level %> / <%= @character.xp_for_next_level %> XP</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill bar-fill--xp"
+           style="width: <%= (100.0 * @character.xp_into_level / @character.xp_for_next_level).round(1) %>%"></div>
+    </div>
+    <p class="hint">Level <%= @character.level + 1 %> at <%= Character.xp_for_level(@character.level + 1) %> total XP.</p>
+  </section>
+
+  <section class="stat-card">
+    <div class="stat-card-head">
+      <h2>Life</h2>
+      <span class="tag">
+        <span data-character-target="lifeText"><%= @character.current_life %></span> / <%= @character.max_hp %>
+      </span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill bar-fill--life" data-character-target="lifeBar"
+           style="width: <%= (100.0 * @character.current_life / @character.max_hp).round(1) %>%"></div>
+    </div>
+    <p class="hint" data-character-target="readyNote">
+      <% if @character.ready_for_battle? %>
+        Ready for battle.
+      <% else %>
+        Recovers to battle-ready (<%= Character::BATTLE_READY_LIFE %> life) in
+        <strong data-character-target="countdown"><%= format_duration(@character.seconds_until_ready) %></strong>
+        — <%= Character::LIFE_REGEN_PER_MINUTE %> life per minute.
+      <% end %>
+    </p>
+  </section>
+
+  <div class="cta-row">
+    <%= link_to "Go to lobby", lobby_path, class: "btn btn--primary" %>
+    <%= link_to "Challenge someone", battles_path, class: "btn" %>
+  </div>
+</div>
 
 <h2>Damage by where the shell lands</h2>
 <ul class="card-list">
@@ -10,5 +59,3 @@
   <li><span>Shrapnel, 1 unit out</span><strong><%= Battle::DAMAGE_BANDS[3].last %></strong></li>
   <li><span>Shrapnel, 2 units out</span><strong><%= Battle::DAMAGE_BANDS[4].last %></strong></li>
 </ul>
-
-<p class="back-link"><%= link_to "← Back to battles", battles_path %></p>

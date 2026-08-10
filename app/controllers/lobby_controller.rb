@@ -9,6 +9,11 @@ class LobbyController < ApplicationController
   end
 
   def join
+    unless current_character.ready_for_battle?
+      return render json: { error: "You are still recovering. Wait for your life to reach 90." },
+                    status: :unprocessable_entity
+    end
+
     QueueEntry.find_or_create_by!(character: current_character)
     started = Matchmaker.run!
     LobbyChannel.queue_changed!

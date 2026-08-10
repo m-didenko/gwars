@@ -50,16 +50,28 @@ class Battle < ApplicationRecord
   validate :opponent_is_someone_else
   validate :no_unfinished_battle_with_opponent, if: -> { pending? || active? }
 
+  # Persists life back to both commanders and pays out the winner's XP. A
+  # plain callback rather than a call at each of resolve_turn!'s two finish
+  # branches (HP hitting zero, or a miss-streak forfeit) — both already funnel
+  # through the same save!, so this fires exactly once regardless of which
+  # one ended the fight.
+  after_update :settle_characters!, if: -> { saved_change_to_status? && finished? }
+
   def accept!
     raise "Battle already started" unless pending?
+    raise "Both commanders must recover before their next battle" \
+      unless player_one.ready_for_battle? && player_two.ready_for_battle?
 
     transaction do
       update!(
         status: :active,
         attacker: player_one,
         turn_number: 1,
-        player_one_hp: player_one.max_hp,
-        player_two_hp: player_two.max_hp,
+        # Not always a fresh max_hp: life carries over between battles, so a
+        # commander who was still healing when the clock allowed them back in
+        # starts this fight at whatever they had recovered to.
+        player_one_hp: player_one.current_life,
+        player_two_hp: player_two.current_life,
         player_one_position: START_POSITIONS[:one],
         player_two_position: START_POSITIONS[:two]
       )
@@ -226,6 +238,22 @@ class Battle < ApplicationRecord
   end
 
   private
+
+  # Both commanders keep whatever HP they finished with, win or lose — that
+  # is what makes life a resource that persists across battles instead of
+  # resetting to full every time. Only the winner is paid XP; the margin is
+  # their final HP minus the loser's, so grinding out a narrow win still pays
+  # out, floored by Character::MIN_WIN_XP so even a lopsided one always does.
+  def settle_characters!
+    player_one.replenish_life!(player_one_hp)
+    player_two.replenish_life!(player_two_hp)
+
+    return unless winner
+
+    loser_hp = winner_id == player_one_id ? player_two_hp : player_one_hp
+    xp = [hp_for(winner) - loser_hp, Character::MIN_WIN_XP].max
+    winner.grant_experience!(xp)
+  end
 
   def opponent_is_someone_else
     return if player_one_id.nil? || player_one_id != player_two_id

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_10_171613) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_10_185556) do
   create_table "battle_turns", force: :cascade do |t|
     t.integer "battle_id", null: false
     t.integer "turn_number", null: false
@@ -64,6 +64,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_171613) do
     t.integer "gold", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "level", default: 1, null: false
+    t.integer "experience", default: 0, null: false
+    t.integer "life", default: 100, null: false
+    t.datetime "life_replenished_at"
     t.index ["user_id"], name: "index_characters_on_user_id"
   end
 

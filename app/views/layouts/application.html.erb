@@ -17,6 +17,7 @@
       <nav>
         <% if user_signed_in? %>
           <% if current_character %>
+            <%= link_to "Profile", character_path %> |
             <%= link_to "Lobby", lobby_path %> |
             <%= link_to "Duels", battles_path %> |
           <% end %>

@@ -9,6 +9,10 @@ class BattlesController < ApplicationController
   end
 
   def create
+    unless current_character.ready_for_battle?
+      return redirect_to battles_path, alert: "You are still recovering. Wait for your life to reach 90."
+    end
+
     opponent = Character.find(params[:opponent_id])
     @battle = Battle.new(player_one: current_character, player_two: opponent, status: :pending)
 
