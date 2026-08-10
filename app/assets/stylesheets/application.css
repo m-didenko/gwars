@@ -94,6 +94,25 @@ main { max-width: 1060px; margin: 24px auto 60px; padding: 0 16px; }
 .hud-turn-role--attacker { color: var(--blue); border-color: #2b4d73; }
 .hud-turn-role--defender { color: var(--red); border-color: #6d2b26; }
 
+.hud-turn-clock {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums; /* the digits must not shift while counting */
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.hud-turn-clock.is-urgent { color: var(--red); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hud-turn-clock.is-urgent { animation: clock-pulse 1s steps(2, end) infinite; }
+}
+
+@keyframes clock-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.45; }
+}
+
 /* ----------------------------------------------------------------- field */
 
 .field { display: block; width: 100%; height: auto; background: #0b0f15; }

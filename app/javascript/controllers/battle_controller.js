@@ -36,6 +36,7 @@ export default class extends Controller {
     "crosshair", "crosshairLabel", "projectile", "explosion",
     "damagePopup", "damageText",
     "hpTextOne", "hpTextTwo", "hpBarOne", "hpBarTwo", "turnNumber", "roleLabel",
+    "clock", "clockValue",
     "aimPanel", "infoPanel", "movePanel", "waitPanel", "acceptPanel", "resultPanel",
     "fireButton", "targetOut", "angleOut", "positionOut",
     "waitTitle", "waitNote", "resultTitle", "resultNote", "ticker", "error"
@@ -57,6 +58,12 @@ export default class extends Controller {
     this.myAim = null
     this.myMove = null
     this.seenReplayId = 0
+    this.socketEverConnected = false
+    this.clockEndsAt = null
+    this.clockTimer = null
+    this.outOfTime = false
+    this.nudgedTurn = null
+    this.lastRoundNote = ""
 
     this.onPointerMove = this.onPointerMove.bind(this)
     this.onPointerLeave = this.onPointerLeave.bind(this)
@@ -68,7 +75,23 @@ export default class extends Controller {
     this.consumer = createConsumer()
     this.subscription = this.consumer.subscriptions.create(
       { channel: "BattleChannel", id: this.idValue },
-      { received: (state) => this.applyState(state, false) }
+      {
+        received: (state) => this.applyState(state, false),
+        // Everything broadcast while the socket was down is gone for good, so a
+        // reconnected client has to ask for the current state instead of
+        // trusting what is on screen. Phones make this the normal case: locking
+        // the screen or switching apps drops the connection every time.
+        //
+        // Any connect past the first one is a reconnect, so we count them here
+        // rather than trust Action Cable's `reconnected` flag: it stays false
+        // when the socket is reopened from visibilitychange, which is precisely
+        // the coming-back-to-the-app case. The first connect needs no resync —
+        // the page render already carried the state.
+        connected: () => {
+          if (this.socketEverConnected) this.resync()
+          this.socketEverConnected = true
+        }
+      }
     )
 
     this.applyState(this.stateValue, true)
@@ -78,6 +101,7 @@ export default class extends Controller {
     this.sceneTarget.removeEventListener("pointermove", this.onPointerMove)
     this.sceneTarget.removeEventListener("pointerleave", this.onPointerLeave)
     this.sceneTarget.removeEventListener("click", this.onSceneClick)
+    this.stopClock()
     this.subscription?.unsubscribe()
     this.consumer?.disconnect()
   }
@@ -127,6 +151,8 @@ export default class extends Controller {
       if (state.you.move != null) this.myMove = state.you.move
     }
 
+    this.startClock(state.turnEndsIn)
+
     this.placeTanks()
     this.setHp("one", state.hp.one)
     this.setHp("two", state.hp.two)
@@ -173,7 +199,10 @@ export default class extends Controller {
 
   renderPanels(role) {
     const state = this.state
-    const committed = role === "attacker" ? state.committed.attacker : state.committed.defender
+    const decided = role === "attacker" ? state.committed.attacker : state.committed.defender
+    // Running out of time closes the panel just like deciding does — there is
+    // nothing left to choose either way.
+    const committed = decided || this.outOfTime
     const acceptable = state.status === "pending" && this.mySideValue === "two"
 
     this.toggle(this.aimPanelTarget, role === "attacker" && !committed)
@@ -188,12 +217,21 @@ export default class extends Controller {
 
     if (waiting) {
       const pending = state.status === "pending"
-      this.waitTitleTarget.textContent = pending ? "WAITING FOR OPPONENT" : "LOCKED IN"
+      const lateTitle = role === "attacker" ? "NO SHOT" : "HOLDING STILL"
+
+      this.waitTitleTarget.textContent = pending
+        ? "WAITING FOR OPPONENT"
+        : decided ? "LOCKED IN" : lateTitle
+
       this.waitNoteTarget.textContent = pending
         ? `${this.nameValue("two")} has not accepted the challenge yet.`
-        : role === "attacker"
-          ? "Shot locked in. Waiting for the enemy to move…"
-          : "Move locked in. Waiting for the enemy to fire…"
+        : decided
+          ? (role === "attacker"
+            ? "Shot locked in. Waiting for the enemy to move…"
+            : "Move locked in. Waiting for the enemy to fire…")
+          : (role === "attacker"
+            ? "Out of time — this round you do not fire."
+            : "Out of time — this round you stay where you are.")
     }
 
     if (state.status === "finished") {
@@ -210,9 +248,11 @@ export default class extends Controller {
     this.toggle(this.tickerTarget, active)
     if (!active) return
 
-    this.tickerTarget.textContent = role === "attacker"
+    const live = role === "attacker"
       ? (state.committed.defender ? "Enemy has committed their move." : "Enemy is deciding where to roll…")
       : (state.committed.attacker ? "Enemy has locked their shot." : "Enemy is lining up a shot…")
+
+    this.tickerTarget.textContent = this.lastRoundNote ? `${this.lastRoundNote} ${live}` : live
   }
 
   role() {
@@ -249,6 +289,92 @@ export default class extends Controller {
 
   async accept() {
     await this.post("accept", {})
+  }
+
+  // ---------------------------------------------------------------- clock
+
+  // The server sends how many seconds are left rather than when the turn ends,
+  // so we anchor the countdown to the local clock and never care whether the
+  // device agrees with the server about the time of day.
+  startClock(secondsLeft) {
+    if (secondsLeft == null) {
+      this.stopClock()
+      this.toggle(this.clockTarget, false)
+      return
+    }
+
+    this.clockEndsAt = performance.now() + secondsLeft * 1000
+    this.outOfTime = false
+    this.toggle(this.clockTarget, true)
+    this.tickClock()
+
+    // Re-arming on every state update would restart the interval for nothing;
+    // the anchor above is all a running one needs.
+    if (!this.clockTimer) this.clockTimer = setInterval(() => this.tickClock(), 250)
+  }
+
+  stopClock() {
+    if (this.clockTimer) clearInterval(this.clockTimer)
+    this.clockTimer = null
+    this.clockEndsAt = null
+  }
+
+  tickClock() {
+    if (this.clockEndsAt === null) return
+
+    const left = Math.max(0, (this.clockEndsAt - performance.now()) / 1000)
+    this.clockValueTarget.textContent = Math.ceil(left)
+    this.clockTarget.classList.toggle("is-urgent", left <= 10)
+
+    if (left > 0) return
+
+    // Out of time: stop taking input here as well, so a click that lands in the
+    // same instant cannot be submitted against a turn that is already over.
+    if (!this.outOfTime) {
+      this.outOfTime = true
+      this.syncCursor()
+      this.renderPanels(this.role())
+    }
+
+    this.nudgeExpire()
+  }
+
+  // Tell the server the clock ran out. It checks the deadline itself, so this
+  // is only a nudge — and one per turn is enough, since both players send it
+  // and whoever arrives second is a no-op.
+  async nudgeExpire() {
+    const turn = this.state?.turnNumber
+    if (this.nudgedTurn === turn) return
+
+    this.nudgedTurn = turn
+    try {
+      await fetch(`/battles/${this.idValue}/expire`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRF-Token": document.querySelector("meta[name=csrf-token]")?.content ?? ""
+        }
+      })
+    } catch {
+      // Offline. The opponent's browser nudges too, and coming back reloads
+      // state anyway, so there is nothing to retry here.
+    }
+  }
+
+  // Refetch the state the socket could not deliver. It is applied as a normal
+  // update rather than an initial one, so a round that resolved while we were
+  // away still plays its animation — seenReplayId keeps an already-watched one
+  // from playing twice.
+  async resync() {
+    try {
+      const response = await fetch(`/battles/${this.idValue}/state`, {
+        headers: { "Accept": "application/json" }
+      })
+      if (response.ok) this.applyState(await response.json(), false)
+    } catch {
+      // Dropped again mid-request; the next `connected` will retry.
+    }
   }
 
   async post(action, body) {
@@ -417,18 +543,26 @@ export default class extends Controller {
 
   async playReplay(turn) {
     const defenderSide = turn.attackerSide === "one" ? "two" : "one"
+    // No aim point means the attacker's clock ran out: the tank still rolls,
+    // but nothing is fired at it.
+    const fired = turn.aimX != null
+
+    // Carried into the next turn's ticker — this is the only place a player
+    // learns their opponent ran the clock down. Reset on every replay, so a
+    // normal round clears it.
+    const notes = []
+    if (turn.attackerTimedOut) notes.push(`${this.nameValue(turn.attackerSide)} ran out of time and never fired.`)
+    if (turn.defenderTimedOut) notes.push(`${this.nameValue(defenderSide)} ran out of time and held still.`)
+    this.lastRoundNote = notes.join(" ")
 
     this.animating = true
+    this.stopClock()
     this.hideAim()
     this.ghostTarget.setAttribute("opacity", "0")
     this.setTank(defenderSide, turn.defenderFrom)
     this.setHp(defenderSide, turn.hpBefore)
 
     if (!this.prefersReducedMotion()) {
-      const from = this.muzzleFor(turn.attackerSide, turn.attackerPosition)
-      const to = { x: worldToX(turn.aimX), y: VIEW.ground }
-      const control = this.controlPoint(from, to)
-
       // The defender rolls while the shell is still in the air — that overlap
       // is the whole game: you shoot at where you think they will be.
       const rolling = this.tween(700, (p) => {
@@ -436,16 +570,23 @@ export default class extends Controller {
         this.setTank(defenderSide, turn.defenderFrom + (turn.defenderTo - turn.defenderFrom) * eased)
       })
 
-      this.projectileTarget.setAttribute("opacity", "1")
-      await this.tween(1100, (p) => {
-        const point = quadPoint(from, control, to, p)
-        this.projectileTarget.setAttribute("cx", point.x)
-        this.projectileTarget.setAttribute("cy", point.y)
-      })
-      this.projectileTarget.setAttribute("opacity", "0")
-      await rolling
+      if (fired) {
+        const from = this.muzzleFor(turn.attackerSide, turn.attackerPosition)
+        const to = { x: worldToX(turn.aimX), y: VIEW.ground }
+        const control = this.controlPoint(from, to)
 
-      await this.explode(to, turn.hit)
+        this.projectileTarget.setAttribute("opacity", "1")
+        await this.tween(1100, (p) => {
+          const point = quadPoint(from, control, to, p)
+          this.projectileTarget.setAttribute("cx", point.x)
+          this.projectileTarget.setAttribute("cy", point.y)
+        })
+        this.projectileTarget.setAttribute("opacity", "0")
+        await rolling
+        await this.explode(to, turn.hit)
+      } else {
+        await rolling
+      }
 
       if (turn.damage > 0) {
         // Deliberately not awaited: the number lingers for three seconds while
@@ -511,7 +652,8 @@ export default class extends Controller {
       state.status === "active" &&
       state.attackerSide === this.mySideValue &&
       !state.committed.attacker &&
-      !this.animating
+      !this.animating &&
+      !this.outOfTime
   }
 
   canMove() {
@@ -520,7 +662,8 @@ export default class extends Controller {
       state.status === "active" &&
       state.attackerSide !== this.mySideValue &&
       !state.committed.defender &&
-      !this.animating
+      !this.animating &&
+      !this.outOfTime
   }
 
   syncCursor() {

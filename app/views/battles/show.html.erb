@@ -27,6 +27,9 @@
     <div class="hud-turn">
       <div class="hud-turn-number" data-battle-target="turnNumber">—</div>
       <div class="hud-turn-role" data-battle-target="roleLabel">—</div>
+      <div class="hud-turn-clock" data-battle-target="clock" hidden>
+        <span data-battle-target="clockValue">—</span>s
+      </div>
     </div>
 
     <div class="hud-side hud-side--two <%= "is-you" if @battle.player_two == current_character %>">
@@ -50,7 +53,8 @@
       <h2>AIM YOUR SHOT</h2>
       <p class="hint">
         Aim with the mouse, then click the field — or press FIRE. The marked band
-        is everywhere the enemy could roll to.
+        is everywhere the enemy could roll to. Miss the
+        <%= Battle::TURN_SECONDS %>-second clock and you do not fire at all.
       </p>
       <button type="button" class="btn btn--fire"
               data-battle-target="fireButton" data-action="battle#fire" disabled>FIRE</button>
@@ -72,7 +76,8 @@
       <h2>MOVE YOUR TANK</h2>
       <p class="hint">
         Click inside the marked band to roll there — that locks your move in.
-        The enemy is aiming right now.
+        The enemy is aiming right now, and if the
+        <%= Battle::TURN_SECONDS %>-second clock runs out you stay put.
       </p>
       <div class="move-options">
         <% Battle::MOVE_PRESETS.each do |delta| %>

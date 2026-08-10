@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_09_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_09_130000) do
   create_table "battle_turns", force: :cascade do |t|
     t.integer "battle_id", null: false
     t.integer "turn_number", null: false
@@ -29,6 +29,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_09_120000) do
     t.datetime "resolved_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "deadline_at"
+    t.boolean "attacker_timed_out", default: false, null: false
+    t.boolean "defender_timed_out", default: false, null: false
     t.index ["battle_id", "turn_number"], name: "index_battle_turns_on_battle_id_and_turn_number", unique: true
     t.index ["battle_id"], name: "index_battle_turns_on_battle_id"
   end

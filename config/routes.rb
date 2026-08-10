@@ -8,9 +8,11 @@ Rails.application.routes.draw do
 
   resources :battles, only: [:index, :new, :create, :show] do
     member do
+      get :state
       post :accept, to: "battle_turns#accept"
       post :aim, to: "battle_turns#aim"
       post :move, to: "battle_turns#move"
+      post :expire, to: "battle_turns#expire"
     end
   end
 

@@ -16,6 +16,12 @@ class BattleTurnsController < ApplicationController
     commit { @battle.accept! }
   end
 
+  # A browser whose countdown hit zero. It only asks; the model decides, so
+  # nothing here trusts the client about what time it is.
+  def expire
+    commit { @battle.resolve_if_expired! }
+  end
+
   private
 
   def set_battle

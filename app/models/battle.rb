@@ -23,6 +23,11 @@ class Battle < ApplicationRecord
   MIN_SEPARATION = 12             # tanks may never close in tighter than this
   START_POSITIONS = { one: 20, two: 80 }.freeze
 
+  # How long a player has to decide. Running out is a legal outcome, not an
+  # error: the attacker simply does not fire and the defender simply holds
+  # still, so a battle can never stall on someone who walked away.
+  TURN_SECONDS = 30
+
   belongs_to :player_one, class_name: "Character"
   belongs_to :player_two, class_name: "Character"
   belongs_to :attacker, class_name: "Character", optional: true
@@ -32,9 +37,8 @@ class Battle < ApplicationRecord
 
   enum :status, { pending: 0, active: 1, finished: 2 }
 
-  validates :player_two_id, uniqueness: {
-    scope: :player_one_id, message: "battle with this opponent already exists"
-  }, if: -> { pending? || active? }
+  validate :opponent_is_someone_else
+  validate :no_unfinished_battle_with_opponent, if: -> { pending? || active? }
 
   def accept!
     raise "Battle already started" unless pending?
@@ -108,6 +112,11 @@ class Battle < ApplicationRecord
       hp: { one: player_one_hp, two: player_two_hp },
       maxHp: { one: player_one.max_hp, two: player_two.max_hp },
       committed: { attacker: turn&.fired? || false, defender: turn&.moved? || false },
+      turnSeconds: TURN_SECONDS,
+      # Seconds left rather than the wall-clock deadline: the browser counts
+      # down from whatever number it receives, so a device with a skewed clock
+      # still agrees with the server about when the turn ends.
+      turnEndsIn: (turn&.seconds_left if active?),
       replay: last_resolved_turn&.animation_payload(self)
     }
 
@@ -161,7 +170,58 @@ class Battle < ApplicationRecord
     broadcast_state!
   end
 
+  # The clock ran out. Whoever is still watching nudges the server, but the
+  # server re-checks the deadline itself, so an early or forged nudge does
+  # nothing and two nudges arriving together resolve the turn only once — the
+  # second finds the next turn's deadline sitting in the future.
+  #
+  # Nobody watching means nobody nudging, and an abandoned battle simply waits.
+  # That is deliberate: the first player back resolves the one stale turn and
+  # starts the next on a full clock instead of losing rounds nobody was present
+  # for. Being present while your opponent is away is what lets you hit them.
+  def resolve_if_expired!
+    expired = false
+
+    with_lock do
+      turn = current_turn
+      next unless active? && turn&.expired?
+
+      turn.attacker_timed_out = !turn.fired?
+      turn.defender_timed_out = !turn.moved?
+      resolve_turn!(turn)
+      expired = true
+    end
+
+    broadcast_state! if expired
+    expired
+  end
+
   private
+
+  def opponent_is_someone_else
+    return if player_one_id.nil? || player_one_id != player_two_id
+
+    errors.add(:base, "You cannot challenge yourself")
+  end
+
+  # One live battle per pair. A finished one must not block the rematch, which
+  # rules out a plain uniqueness validation: its `if:` decides whether to run,
+  # but the query it runs still counts every battle these two have ever had.
+  #
+  # The pair is matched in both directions too — a challenge is the same battle
+  # whichever side sent it, so an open one already covers the return challenge.
+  def no_unfinished_battle_with_opponent
+    return if player_one_id.nil? || player_two_id.nil?
+
+    pair = [player_one_id, player_two_id]
+    rivals = Battle.where.not(status: :finished)
+                   .where(player_one_id: pair, player_two_id: pair)
+    rivals = rivals.where.not(id: id) if persisted?
+
+    return unless rivals.exists?
+
+    errors.add(:base, "You already have an unfinished battle with this commander")
+  end
 
   def require_open_turn!
     raise "Battle is not active" unless active?
@@ -174,7 +234,8 @@ class Battle < ApplicationRecord
       turn_number: turn_number,
       attacker_id: attacker.id,
       defender_id: defender.id,
-      attacker_position: position_for(attacker)
+      attacker_position: position_for(attacker),
+      deadline_at: TURN_SECONDS.seconds.from_now
     )
   end
 
@@ -183,19 +244,24 @@ class Battle < ApplicationRecord
   def resolve_turn!(turn)
     defending = defender
     moved_from = position_for(defending)
-    moved_to = clamp_position(moved_from + turn.move_delta, position_for(attacker))
+    # A defender who ran out of time holds still.
+    moved_to = clamp_position(moved_from + (turn.move_delta || 0), position_for(attacker))
 
-    distance = (turn.aim_x.to_f - moved_to).abs
-    damage = damage_for(distance)
+    # An attacker who ran out of time gets no shot at all, so there is no
+    # landing point and nothing to be near — distance stays nil rather than
+    # collapsing to coordinate zero.
+    distance = turn.fired? ? (turn.aim_x.to_f - moved_to).abs : nil
+    damage = distance ? damage_for(distance) : 0
     hp_before = hp_for(defending)
     hp_after = [hp_before - damage, 0].max
 
     turn.update!(
+      move_delta: turn.move_delta || 0,
       defender_position_before: moved_from,
       defender_position_after: moved_to,
       distance: distance,
       # Only a hit on the hull; shrapnel still does damage but reads differently.
-      hit: distance <= TANK_HALF,
+      hit: distance ? distance <= TANK_HALF : false,
       damage: damage,
       defender_hp_before: hp_before,
       defender_hp_after: hp_after,
