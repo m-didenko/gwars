@@ -6,11 +6,10 @@ Rails.application.routes.draw do
 
   resource :character, only: [:new, :create, :show]
 
-  get "lobby", to: "lobby#show", as: :lobby
   post "lobby/join", to: "lobby#join", as: :join_lobby
   post "lobby/leave", to: "lobby#leave", as: :leave_lobby
 
-  resources :battles, only: [:index, :new, :create, :show] do
+  resources :battles, only: [:index, :show] do
     member do
       get :state
       get :log

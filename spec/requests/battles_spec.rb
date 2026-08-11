@@ -8,38 +8,10 @@ RSpec.describe "Battles", type: :request do
   before { sign_in user }
 
   describe "GET /battles" do
-    it "lists opponents and the commander's own battles" do
+    it "lists the commander's own battles" do
       get battles_path
 
       expect(response).to have_http_status(:ok)
-    end
-  end
-
-  describe "POST /battles" do
-    it "sends a pending challenge to the chosen opponent" do
-      post battles_path, params: { opponent_id: opponent.id }
-
-      battle = Battle.last
-      expect(response).to redirect_to(battle_path(battle))
-      expect(battle).to be_pending
-      expect(battle.player_one).to eq(character)
-      expect(battle.player_two).to eq(opponent)
-    end
-
-    it "refuses to send a challenge while the commander is still recovering" do
-      character.update!(life: 10, life_replenished_at: Time.current)
-
-      expect { post battles_path, params: { opponent_id: opponent.id } }.not_to change(Battle, :count)
-      expect(response).to redirect_to(battles_path)
-      follow_redirect!
-      expect(response.body).to include("still recovering")
-    end
-
-    it "rejects a self-challenge" do
-      post battles_path, params: { opponent_id: character.id }
-
-      expect(response).to redirect_to(battles_path)
-      expect(Battle.count).to eq(0)
     end
   end
 

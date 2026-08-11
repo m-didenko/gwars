@@ -1,8 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 
-// The lobby queue. The button posts, the channel pushes, and a match takes the
-// player into the duel without anyone reloading anything.
+// The matchmaking queue, mounted on the character page. The button posts, the
+// channel pushes, and a match takes the player into the duel without anyone
+// reloading anything.
 export default class extends Controller {
   static targets = ["status", "button"]
   static values = { state: Object }
@@ -60,7 +61,7 @@ export default class extends Controller {
         if (problem.battleId) {
           this.enter(problem.battleId)
         } else {
-          this.statusTarget.textContent = problem.error ?? "Could not reach the lobby. Try again."
+          this.statusTarget.textContent = problem.error ?? "Could not reach the queue. Try again."
         }
         return
       }
@@ -72,7 +73,7 @@ export default class extends Controller {
       // player whose socket happens to be down.
       if (this.state.battleId) this.enter(this.state.battleId)
     } catch {
-      this.statusTarget.textContent = "Could not reach the lobby. Try again."
+      this.statusTarget.textContent = "Could not reach the queue. Try again."
     } finally {
       this.busy = false
       this.buttonTarget.disabled = this.entering

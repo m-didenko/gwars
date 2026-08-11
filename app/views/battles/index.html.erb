@@ -1,4 +1,4 @@
-<h1>Duels</h1>
+<h1>Battles</h1>
 
 <p class="tag">
   COMMANDER: <strong><%= current_character.name %></strong> ·
@@ -6,23 +6,9 @@
 </p>
 
 <p class="hint">
-  Pick a specific opponent here. To be matched with whoever is available,
-  <%= link_to "use the lobby", lobby_path %> instead.
+  Opponents are matched at random — <%= link_to "join the queue", character_path %> to
+  start one.
 </p>
-
-<h2>Challenge a commander</h2>
-<% if @opponents.empty? %>
-  <ul class="card-list"><li>No other commanders yet — ask a friend to sign up.</li></ul>
-<% else %>
-  <ul class="card-list">
-    <% @opponents.each do |opponent| %>
-      <li>
-        <span><%= opponent.name %> <span class="tag">· MAX HP <%= opponent.max_hp %></span></span>
-        <%= button_to "CHALLENGE", battles_path(opponent_id: opponent.id), method: :post, class: "btn" %>
-      </li>
-    <% end %>
-  </ul>
-<% end %>
 
 <h2>Your battles</h2>
 <% if @battles.empty? %>

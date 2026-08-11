@@ -7,7 +7,7 @@ require "rails_helper"
 RSpec.describe "ApplicationController", type: :request do
   describe "authenticate_user!" do
     it "sends a signed-out visitor to sign in, whichever page they asked for" do
-      get lobby_path
+      get root_path
 
       expect(response).to redirect_to(new_user_session_path)
     end
@@ -18,8 +18,8 @@ RSpec.describe "ApplicationController", type: :request do
 
     before { sign_in user }
 
-    it "sends a character-less commander to create one before entering the lobby" do
-      get lobby_path
+    it "sends a character-less commander to create one before joining the queue" do
+      post join_lobby_path
 
       expect(response).to redirect_to(new_character_path)
     end
@@ -49,10 +49,10 @@ RSpec.describe "ApplicationController", type: :request do
       expect(response).to redirect_to(battle_path(battle))
     end
 
-    it "holds the lobby page" do
+    it "holds the battles (duels) page" do
       battle # eager-load before the request
 
-      get lobby_path
+      get battles_path
 
       expect(response).to redirect_to(battle_path(battle))
     end

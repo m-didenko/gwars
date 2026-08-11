@@ -6,14 +6,6 @@ RSpec.describe "Lobby", type: :request do
 
   before { sign_in user }
 
-  describe "GET /lobby" do
-    it "is reachable for a signed-in commander" do
-      get lobby_path
-
-      expect(response).to have_http_status(:ok)
-    end
-  end
-
   describe "POST /lobby/join" do
     it "queues a battle-ready commander" do
       post join_lobby_path, as: :json

@@ -45,9 +45,22 @@
     </p>
   </section>
 
+  <section class="lobby"
+           data-controller="queue"
+           data-queue-state-value="<%= lobby_state.to_json %>">
+    <p class="lobby-status" data-queue-target="status">Checking the queue…</p>
+
+    <button type="button" class="btn btn--primary btn--wide"
+            data-queue-target="button" data-action="queue#toggle">JOIN THE QUEUE</button>
+
+    <p class="hint">
+      You are dropped straight into a duel as soon as another commander is
+      waiting — matched at random, nothing to accept.
+    </p>
+  </section>
+
   <div class="cta-row">
-    <%= link_to "Go to lobby", lobby_path, class: "btn btn--primary" %>
-    <%= link_to "Challenge someone", battles_path, class: "btn" %>
+    <%= link_to "Your battles", battles_path, class: "btn" %>
   </div>
 </div>
 

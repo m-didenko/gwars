@@ -48,9 +48,10 @@ module Matchmaker
   end
 
   # Queueing is consent, so the duel starts at once instead of waiting to be
-  # accepted. If these two already have something unfinished — a challenge one
-  # of them sent from the duels page — that is the battle they get, since only
-  # one battle per pair may be open at a time.
+  # accepted. If these two already have something unfinished between them —
+  # only possible if they were paired before and one side never actually
+  # entered the finished battle — that is the battle they get, since only one
+  # battle per pair may be open at a time.
   def start_battle(one, two)
     pair = [one.id, two.id]
     battle = Battle.where.not(status: :finished)

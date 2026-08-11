@@ -1,12 +1,7 @@
 class LobbyController < ApplicationController
-  before_action :require_character!
+  include ApplicationHelper # lobby_state is shared with the character page's widget
 
-  def show
-    @ongoing = Battle.where.not(status: :finished)
-                     .where(player_one: current_character)
-                     .or(Battle.where.not(status: :finished).where(player_two: current_character))
-                     .order(created_at: :desc)
-  end
+  before_action :require_character!
 
   def join
     unless current_character.ready_for_battle?
@@ -29,15 +24,4 @@ class LobbyController < ApplicationController
 
     render json: lobby_state
   end
-
-  private
-
-  def lobby_state(battle = nil)
-    {
-      queued: QueueEntry.exists?(character: current_character),
-      waiting: QueueEntry.count,
-      battleId: battle&.id
-    }
-  end
-  helper_method :lobby_state
 end

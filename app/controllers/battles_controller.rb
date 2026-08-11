@@ -3,24 +3,8 @@ class BattlesController < ApplicationController
   before_action :set_battle, only: [:show, :state, :log]
 
   def index
-    @opponents = Character.where.not(id: current_character&.id).order(:name)
     @battles = Battle.where(player_one: current_character).or(Battle.where(player_two: current_character))
                       .order(created_at: :desc)
-  end
-
-  def create
-    unless current_character.ready_for_battle?
-      return redirect_to battles_path, alert: "You are still recovering. Wait for your life to reach 90."
-    end
-
-    opponent = Character.find(params[:opponent_id])
-    @battle = Battle.new(player_one: current_character, player_two: opponent, status: :pending)
-
-    if @battle.save
-      redirect_to battle_path(@battle), notice: "Challenge sent to #{opponent.name}"
-    else
-      redirect_to battles_path, alert: @battle.errors.full_messages.to_sentence
-    end
   end
 
   def show
