@@ -12,8 +12,9 @@ gem "rails", "~> 7.1.6"
 # The original asset pipeline for Rails [https://github.com/rails/sprockets-rails]
 gem "sprockets-rails"
 
-# Use sqlite3 as the database for Active Record
-gem "sqlite3", ">= 1.4"
+# Use PostgreSQL as the database for Active Record, same adapter in every
+# environment so nothing behaves differently only in production.
+gem "pg", "~> 1.5"
 
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
@@ -33,8 +34,9 @@ gem "devise"
 # this machine's x86_64 Ruby (rbenv 3.2.2 under Rosetta).
 gem "bcrypt", force_ruby_platform: true
 
-# Use Redis adapter to run Action Cable in production
-# gem "redis", ">= 4.0.1"
+# Use Redis adapter to run Action Cable in production (config/cable.yml
+# already points at it; the gem itself was never actually added before)
+gem "redis", ">= 4.0.1"
 
 # Use Kredis to get higher-level data types in Redis [https://github.com/rails/kredis]
 # gem "kredis"

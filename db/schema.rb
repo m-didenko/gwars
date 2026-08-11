@@ -11,8 +11,11 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[7.1].define(version: 2026_08_10_185556) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
   create_table "battle_turns", force: :cascade do |t|
-    t.integer "battle_id", null: false
+    t.bigint "battle_id", null: false
     t.integer "turn_number", null: false
     t.integer "attacker_id", null: false
     t.integer "defender_id", null: false
@@ -56,7 +59,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_185556) do
   end
 
   create_table "characters", force: :cascade do |t|
-    t.integer "user_id", null: false
+    t.bigint "user_id", null: false
     t.string "name"
     t.integer "max_hp", default: 100, null: false
     t.integer "attack", default: 10, null: false
@@ -72,7 +75,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_185556) do
   end
 
   create_table "queue_entries", force: :cascade do |t|
-    t.integer "character_id", null: false
+    t.bigint "character_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["character_id"], name: "index_queue_entries_on_character_id", unique: true

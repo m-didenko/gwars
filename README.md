@@ -6,19 +6,47 @@
 
 ## Стек
 
-- Rails 7.1, Ruby 3.2.2 (rbenv), SQLite
+- Rails 7.1, Ruby 3.2.2 (rbenv), PostgreSQL
 - Devise — аутентификация
-- Action Cable (`BattleChannel`) — состояние боя приходит обоим игрокам как JSON
+- Action Cable (`BattleChannel`) — состояние боя приходит обоим игрокам как JSON,
+  бродкасты идут через Redis (нужен уже и локально — см. запуск ниже)
 - Stimulus + инлайновый SVG — прицеливание и анимация боя, без сторонних библиотек
 
 ## Запуск
 
+Postgres и Redis нужны даже для разработки — Action Cable в этом проекте
+всегда ходит через Redis-адаптер (`config/cable.yml`), отдельного
+async-режима под dev нет. Проще всего поднять оба контейнером:
+
+```bash
+docker compose up -d db redis
+```
+
+Дальше — обычный локальный `bin/rails`, только с адресом до этих контейнеров:
+
 ```bash
 export PATH="$HOME/.rbenv/shims:$PATH"   # если ruby 3.2.2 не в PATH по умолчанию
+export DATABASE_HOST=localhost DATABASE_USERNAME=gwars DATABASE_PASSWORD=gwars
+export REDIS_URL=redis://localhost:6379/1
 bundle install
 bin/rails db:create db:migrate db:seed
 bin/rails server
 ```
+
+### Запуск целиком в Docker
+
+`docker compose up` (без `-d db redis`) поднимает то же самое, только вместо
+`bin/rails server` на хосте — собранный `Dockerfile`-образ приложения:
+тот же образ, что уйдёт в ECR. Годится, чтобы проверить сам образ, а не для
+разработки с перезагрузкой на лету — на дев-цикл он не рассчитан.
+
+```bash
+export RAILS_MASTER_KEY=$(cat config/master.key)
+docker compose up --build
+```
+
+`bin/docker-entrypoint` перед стартом сам гоняет `db:prepare` — миграции и,
+если база только что создана, `db:seed`.
 
 Открыть `http://localhost:3000` в двух разных браузерах (или обычное окно +
 инкогнито — нужны две независимые сессии):
@@ -186,7 +214,8 @@ Node/сборку, заводить их ради трёх Stimulus-контро
 
 ```bash
 export PATH="$HOME/.rbenv/shims:$PATH"
-bin/rails db:test:prepare   # подтягивает схему в storage/test.sqlite3
+export DATABASE_HOST=localhost DATABASE_USERNAME=gwars DATABASE_PASSWORD=gwars
+bin/rails db:test:prepare   # подтягивает схему в тестовую базу gwars_test
 bundle exec rspec
 ```
 
@@ -200,7 +229,7 @@ bundle exec rspec
 
 `spec/requests/application_controller_spec.rb` фиксирует, что
 `hold_player_in_battle` держит **любую** страницу без явного подключения —
-включая корень (страницу персонажа), а не только `battles`/`lobby` — и что
+включая корень (страницу персонажа), а не только `battles` — и что
 Devise из-под стража исключён по имени, а не по пути: разлогиниться посреди
 боя всё ещё можно.
 
@@ -216,9 +245,19 @@ Devise из-под стража исключён по имени, а не по �
 там, где сценарию нужен предсказуемый исход боя — `rand` в `Battle` не
 переопределён, поэтому стаб ложится прямо на `Kernel#rand`.
 
-Случайный урон (`damage_for`) стабится через `allow(battle).to receive(:rand)`
-там, где сценарию нужен предсказуемый исход боя — `rand` в `Battle` не
-переопределён, поэтому стаб ложится прямо на `Kernel#rand`.
+## Docker / деплой
+
+`Dockerfile` собирает production-образ (multi-stage, ассеты прекомпилируются
+без секретов через `SECRET_KEY_BASE_DUMMY=1`) — это тот же образ, что уходит
+в ECR. Локально его можно проверить целиком через `docker compose up --build`
+(см. «Запуск» выше); `bin/docker-entrypoint` перед стартом сервера сам гоняет
+`db:prepare`.
+
+Через `ENV` в образ приходят: `RAILS_MASTER_KEY` (обязателен — без него не
+расшифруются credentials), `DATABASE_HOST`/`DATABASE_USERNAME`/
+`DATABASE_PASSWORD`/`DATABASE_NAME` (в проде — RDS) и `REDIS_URL` (в проде —
+ElastiCache, Action Cable без него не разошлёт бродкасты между несколькими
+task'ами). План на дальнейший деплой — в `plans/aws.md`.
 
 ## Заметка про окружение (macOS, rbenv)
 

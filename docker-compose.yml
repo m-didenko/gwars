@@ -1,0 +1,48 @@
+# Runs the same image that ships to ECR against real Postgres and Redis, the
+# way it will run in Fargate — as opposed to a hot-reload dev setup. Useful
+# for testing the built image itself, not for day-to-day development (which
+# still runs bin/rails server directly against docker-compose's db/redis).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gwars
+      POSTGRES_PASSWORD: gwars
+    ports:
+      - "5432:5432"
+    volumes:
+      - gwars_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "gwars"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USERNAME: gwars
+      DATABASE_PASSWORD: gwars
+      REDIS_URL: redis://redis:6379/1
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+
+volumes:
+  gwars_postgres_data:
