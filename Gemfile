@@ -35,8 +35,12 @@ gem "devise"
 gem "bcrypt", force_ruby_platform: true
 
 # Use Redis adapter to run Action Cable in production (config/cable.yml
-# already points at it; the gem itself was never actually added before)
-gem "redis", ">= 4.0.1"
+# already points at it; the gem itself was never actually added before).
+# Capped below 6: Rails 7.1's Action Cable adapter still hard-requires
+# `gem "redis", ">= 4, < 6"` at runtime and refuses to load otherwise —
+# an unbounded requirement here resolves to the newest redis gem and
+# breaks Action Cable in production with a LoadError, not a Gemfile error.
+gem "redis", ">= 4.0.1", "< 6"
 
 # Use Kredis to get higher-level data types in Redis [https://github.com/rails/kredis]
 # gem "kredis"

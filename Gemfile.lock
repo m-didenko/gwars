@@ -215,8 +215,8 @@ GEM
       prism (>= 1.6.0)
       rbs (>= 4.0.0)
       tsort
-    redis (6.0.0)
-      redis-client (= 0.30.1)
+    redis (5.4.1)
+      redis-client (>= 0.22.0)
     redis-client (0.30.1)
       connection_pool
     reline (0.7.0)
@@ -288,7 +288,7 @@ DEPENDENCIES
   pg (~> 1.5)
   puma (>= 5.0)
   rails (~> 7.1.6)
-  redis (>= 4.0.1)
+  redis (>= 4.0.1, < 6)
   rspec-rails
   sprockets-rails
   stimulus-rails
