@@ -257,7 +257,11 @@ Devise из-под стража исключён по имени, а не по �
 расшифруются credentials), `DATABASE_HOST`/`DATABASE_USERNAME`/
 `DATABASE_PASSWORD`/`DATABASE_NAME` (в проде — RDS) и `REDIS_URL` (в проде —
 ElastiCache, Action Cable без него не разошлёт бродкасты между несколькими
-task'ами). План на дальнейший деплой — в `plans/aws.md`.
+task'ами).
+
+Сама AWS-инфраструктура (Route53 + ALB + Fargate с автоскейлом по CPU + RDS +
+ElastiCache) описана как код в `infra/` (AWS CDK, TypeScript) — см.
+`infra/README.md` для деплоя и `plans/aws.md` для общего плана.
 
 ## Заметка про окружение (macOS, rbenv)
 

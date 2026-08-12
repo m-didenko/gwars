@@ -1,0 +1,10 @@
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+cdk.out
+.cdk.staging
+# Account-specific lookup cache (AZs, hosted zone lookups, etc.) — this repo
+# deploys into any AWS account, so nothing here should be pinned to one.
+cdk.context.json
+.env

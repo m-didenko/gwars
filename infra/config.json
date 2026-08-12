@@ -1,0 +1,50 @@
+{
+  "appName": "gwars",
+
+  "vpc": {
+    "maxAzs": 2,
+    "natGateways": 0
+  },
+
+  "ecr": {
+    "repositoryName": "gwars",
+    "createRepository": true,
+    "imageTag": "latest",
+    "maxImageCount": 10
+  },
+
+  "ecs": {
+    "containerPort": 3000,
+    "cpu": 256,
+    "memoryLimitMiB": 512,
+    "minCapacity": 1,
+    "maxCapacity": 3,
+    "cpuTargetUtilizationPercent": 80,
+    "healthCheckPath": "/up",
+    "healthCheckGracePeriodSeconds": 90,
+    "logRetentionDays": 7
+  },
+
+  "database": {
+    "instanceType": "t4g.micro",
+    "allocatedStorageGiB": 20,
+    "databaseName": "gwars_production",
+    "backupRetentionDays": 1,
+    "multiAz": false,
+    "deletionProtection": false
+  },
+
+  "redis": {
+    "nodeType": "cache.t4g.micro",
+    "port": 6379
+  },
+
+  "secrets": {
+    "railsMasterKeySecretName": "gwars/rails-master-key"
+  },
+
+  "domain": {
+    "hostedZoneName": "",
+    "subdomain": ""
+  }
+}
