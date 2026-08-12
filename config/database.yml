@@ -22,5 +22,13 @@ test:
   database: <%= ENV.fetch("DATABASE_NAME", "gwars_test") %>
 
 production:
+<% if ENV["DATABASE_URL"].to_s != "" %>
+  # Some hosts (Koyeb's managed Postgres, among others) only ever hand you a
+  # connection string, not separate host/user/password fields — honor it
+  # directly rather than making every host conform to DATABASE_HOST etc.
+  url: <%= ENV["DATABASE_URL"] %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+<% else %>
   <<: *default
   database: <%= ENV.fetch("DATABASE_NAME", "gwars_production") %>
+<% end %>
